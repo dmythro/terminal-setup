@@ -1,8 +1,8 @@
 # Terminal Setup
 
-A curated one-command macOS terminal setup for **zsh** and the native **Terminal.app**. Installs a fast, modern shell environment with sensible defaults — optimized for speed and AI coding agents.
+A curated one-command macOS & Linux terminal setup for **zsh**. Installs a fast, modern shell environment with sensible defaults — optimized for speed and AI coding agents.
 
-While it includes an optional Terminal.app dark theme profile, the shell configuration works in **any terminal emulator** — [iTerm2](https://iterm2.com), [Ghostty](https://ghostty.org), [Alacritty](https://alacritty.org), [Kitty](https://sw.kovidez.net/kitty/), [WezTerm](https://wezfurlong.org/wezterm/), VS Code integrated terminal, etc. The zsh config, prompt, and plugins are terminal-agnostic.
+Uses **Homebrew** on macOS and **apt** on Linux (Ubuntu/Debian). The shell configuration works in **any terminal emulator** — Terminal.app, [iTerm2](https://iterm2.com), [Ghostty](https://ghostty.org), [Alacritty](https://alacritty.org), [Kitty](https://sw.kovidez.net/kitty/), [WezTerm](https://wezfurlong.org/wezterm/), GNOME Terminal, VS Code integrated terminal, etc. The zsh config, prompt, and plugins are terminal-agnostic.
 
 ## Quick Start
 
@@ -22,7 +22,7 @@ curl -sL https://raw.githubusercontent.com/dmythro/terminal-setup/main/reset-ter
 
 | Package | What it does |
 |---------|-------------|
-| [Homebrew](https://brew.sh) | macOS package manager (installed if missing) |
+| [Homebrew](https://brew.sh) / apt | macOS package manager (Linux uses apt) |
 | [fzf](https://github.com/junegunn/fzf) | Fuzzy finder — `Ctrl+R` for history, `Ctrl+T` for files |
 | [zsh-autosuggestions](https://github.com/zsh-users/zsh-autosuggestions) | Fish-like ghost text suggestions from history |
 | [zsh-syntax-highlighting](https://github.com/zsh-users/zsh-syntax-highlighting) | Commands turn green/red as you type |
@@ -48,7 +48,7 @@ Plus a hand-tuned `~/.zshrc` with:
 Includes a mouse-friendly `~/.tmux.conf`:
 
 - Auto-starts per terminal session (toggle with `USE_TMUX=false` in `~/.zshrc`)
-- **Mouse support**: drag to copy (goes to macOS clipboard), drag borders to resize, scroll
+- **Mouse support**: drag to copy (goes to system clipboard), drag borders to resize, scroll
 - `Prefix + \|` / `Prefix + -` for vertical/horizontal splits
 - `Prefix + hjkl` for pane navigation (arrow keys unbound to avoid zsh conflicts)
 - `Prefix + HJKL` for pane resizing
@@ -79,7 +79,7 @@ The setup includes an optional section for installing AI coding agent CLIs via H
 
 > Each agent requires its own API key or login. See the respective docs for setup.
 
-### Optional — Terminal.app Profile
+### Optional — Terminal.app Profile (macOS only)
 
 A dark theme profile (`Dmythro.terminal`) imported directly into Terminal.app:
 
@@ -121,12 +121,14 @@ To get the most out of Starship's icons and glyphs on macOS 26, use a [Nerd Font
 
 > **Note:** Terminal.app on macOS 26 only renders `calt` (contextual alternates) — it does not support `liga`/`dlig` ligatures. For full ligature rendering, use [iTerm2](https://iterm2.com), [Kitty](https://sw.kovidgoyal.net/kitty/), or [WezTerm](https://wezfurlong.org/wezterm/).
 
-| Font | By | Ligatures | Box Drawing | Install |
-|------|----|:---------:|:-----------:|---------|
-| [Geist Mono](https://www.programmingfonts.org/#geistmono) | Vercel | Yes (SS11) | Partial | `brew install --cask font-geist-mono-nerd-font` |
-| [Cascadia Code](https://www.programmingfonts.org/#cascadiacode) | Microsoft | Yes | Complete | `brew install --cask font-caskaydia-mono-nerd-font` |
-| [Monaspace](https://monaspace.githubnext.com) | GitHub | Yes | Complete | `brew install --cask font-monaspice-nerd-font` |
-| [Iosevka](https://www.programmingfonts.org/#iosevka) | Belleve Invis | Yes | Complete | `brew install --cask font-iosevka-nerd-font` |
+| Font | By | Ligatures | Box Drawing | Install (macOS) | Install (Linux) |
+|------|----|:---------:|:-----------:|---------|---------|
+| [Geist Mono](https://www.programmingfonts.org/#geistmono) | Vercel | Yes (SS11) | Partial | `brew install --cask font-geist-mono-nerd-font` | [GeistMono.tar.xz](https://github.com/ryanoasis/nerd-fonts/releases/latest/download/GeistMono.tar.xz) |
+| [Cascadia Code](https://www.programmingfonts.org/#cascadiacode) | Microsoft | Yes | Complete | `brew install --cask font-caskaydia-mono-nerd-font` | [CascadiaCode.tar.xz](https://github.com/ryanoasis/nerd-fonts/releases/latest/download/CascadiaCode.tar.xz) |
+| [Monaspace](https://monaspace.githubnext.com) | GitHub | Yes | Complete | `brew install --cask font-monaspice-nerd-font` | [Monaspace.tar.xz](https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Monaspace.tar.xz) |
+| [Iosevka](https://www.programmingfonts.org/#iosevka) | Belleve Invis | Yes | Complete | `brew install --cask font-iosevka-nerd-font` | [Iosevka.tar.xz](https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Iosevka.tar.xz) |
+
+> **Linux font install:** Download the `.tar.xz`, extract to `~/.local/share/fonts/`, then run `fc-cache -fv`. The setup script handles this automatically for Monaspace.
 
 **Geist Mono** — ligatures are off by default; enable Stylistic Set 11 (SS11) in your terminal's font settings. Box drawing characters were added in v1.5.0 but [some intersections are missing](https://github.com/vercel/geist-font/issues/64) (e.g. `├`), causing fallback to the system font — TUI apps with tables (lazygit, btop, opencode) may show gaps at those points. **Cascadia Code** and **Monaspace** have complete box drawing and render gapless tables.
 
@@ -134,13 +136,13 @@ To get the most out of Starship's icons and glyphs on macOS 26, use a [Nerd Font
 
 **Iosevka** — extremely narrow and customizable, good for small screens and split panes.
 
-After installing, set the font in Terminal.app: **Settings > Profiles > Font > Change**.
+After installing, set the font in your terminal: on macOS, **Terminal.app > Settings > Profiles > Font > Change**; on Linux, use your terminal emulator's font settings.
 
 > Preview and compare fonts at [programmingfonts.org](https://www.programmingfonts.org).
 
 ## Why This Setup
 
-Setting up a productive terminal on a fresh Mac takes time. This script does it in one command with interactive prompts — no frameworks, no plugin managers, no bloat. Just Homebrew packages and plain config files.
+Setting up a productive terminal on a fresh Mac or Linux machine takes time. This script does it in one command with interactive prompts — no frameworks, no plugin managers, no bloat. Just Homebrew packages and plain config files.
 
 The zsh configuration is optimized for working with AI coding agents:
 
@@ -178,7 +180,7 @@ curl -sL https://raw.githubusercontent.com/dmythro/terminal-setup/main/reset-ter
 
 - [ ] Interactive TUI installer via `npx` / `bunx` (checkboxes, step previews, config presets)
 - [ ] Profile presets (minimal, full, agent-focused)
-- [ ] Linux support
+- [x] Linux support (Ubuntu/Debian via apt)
 - [ ] Dotfile backup before overwriting
 
 ## License

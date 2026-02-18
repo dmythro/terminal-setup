@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# macOS Terminal Setup
+# macOS / Linux Terminal Setup
 # Run: curl -sL https://raw.githubusercontent.com/dmythro/terminal-setup/main/setup-terminal.sh | bash
 # =============================================================================
 
@@ -8,26 +8,55 @@ set -e
 
 REPO_RAW="https://raw.githubusercontent.com/dmythro/terminal-setup/main"
 
+# --- OS detection ---
+case "$(uname -s)" in
+  Darwin) IS_MACOS=true;  IS_LINUX=false ;;
+  Linux)  IS_MACOS=false; IS_LINUX=true  ;;
+  *)      echo "❌ Unsupported OS: $(uname -s)"; exit 1 ;;
+esac
+
+# --- Helper: cross-platform sed -i ---
+sed_inplace() {
+  if $IS_MACOS; then
+    sed -i '' "$@"
+  else
+    sed -i "$@"
+  fi
+}
+
 echo "🚀 Setting up terminal..."
 
-# --- 1. Install Homebrew if missing ---
-if ! command -v brew &>/dev/null; then
-  echo "📦 Installing Homebrew..."
-  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-  eval "$(/opt/homebrew/bin/brew shellenv)"
+# --- 1. Install Homebrew if missing (macOS only) ---
+if $IS_MACOS; then
+  if ! command -v brew &>/dev/null; then
+    echo "📦 Installing Homebrew..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+  fi
 fi
 
 # --- 2. Core packages ---
 echo "📦 Installing core packages..."
-brew install fzf zsh-autosuggestions zsh-syntax-highlighting zsh-completions starship
-chmod go-w "$(brew --prefix)/share/zsh-completions" "$(brew --prefix)/share"
+if $IS_MACOS; then
+  brew install fzf zsh-autosuggestions zsh-syntax-highlighting zsh-completions starship
+  chmod go-w "$(brew --prefix)/share/zsh-completions" "$(brew --prefix)/share"
+else
+  sudo apt update
+  sudo apt install -y zsh fzf zsh-autosuggestions zsh-syntax-highlighting xclip
+  # zsh-completions: not in apt, clone from GitHub
+  if [[ ! -d "$HOME/.zsh/zsh-completions" ]]; then
+    git clone --depth 1 https://github.com/zsh-users/zsh-completions ~/.zsh/zsh-completions
+  fi
+  # starship: not in apt on 24.04
+  command -v starship &>/dev/null || curl -sS https://starship.rs/install.sh | sh -s -- -y
+fi
 
 # --- 3. Optional tmux ---
 echo ""
 read -p "📦 Install tmux for split panes? (auto-starts per session) [y/N] " -n 1 -r INSTALL_TMUX < /dev/tty
 echo ""
 if [[ $INSTALL_TMUX =~ ^[Yy]$ ]]; then
-  brew install tmux
+  if $IS_MACOS; then brew install tmux; else sudo apt install -y tmux; fi
   echo "   ✅ tmux installed"
 fi
 
@@ -36,14 +65,34 @@ echo ""
 read -p "📦 Install dev tools? (gh, bun, ripgrep, fd, zoxide, delta) [y/N] " -n 1 -r INSTALL_DEV < /dev/tty
 echo ""
 if [[ $INSTALL_DEV =~ ^[Yy]$ ]]; then
-  brew install gh bun ripgrep fd zoxide git-delta
+  if $IS_MACOS; then
+    brew install gh bun ripgrep fd zoxide git-delta
+  else
+    sudo apt install -y ripgrep fd-find zoxide git-delta
+    # gh: official apt repo
+    if ! command -v gh &>/dev/null; then
+      (type -p wget >/dev/null || sudo apt install -y wget) \
+        && sudo mkdir -p -m 755 /etc/apt/keyrings \
+        && out=$(mktemp) && wget -nv -O "$out" https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+        && cat "$out" | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null \
+        && sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+        && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+        && sudo apt update \
+        && sudo apt install -y gh
+      rm -f "$out"
+    fi
+    # bun: official installer
+    command -v bun &>/dev/null || curl -fsSL https://bun.sh/install | bash
+  fi
   echo "   ✅ Dev tools installed"
 fi
 
 # --- 5. AI coding agents (listed in summary, not installed) ---
 
-# --- 6. Install fzf key bindings ---
-yes | $(brew --prefix)/opt/fzf/install --key-bindings --completion --no-update-rc 2>/dev/null || true
+# --- 6. Install fzf key bindings (macOS only — Linux sources from /usr/share in .zshrc) ---
+if $IS_MACOS; then
+  yes | $(brew --prefix)/opt/fzf/install --key-bindings --completion --no-update-rc 2>/dev/null || true
+fi
 
 # --- 7. Configure git to use delta (if installed) ---
 if command -v delta &>/dev/null; then
@@ -124,27 +173,44 @@ set -g status-left-length 20
 set -g window-status-current-style "fg=cyan,bold"
 set -g window-status-style "fg=colour244"
 
-# --- Window titles (passed to Terminal.app tab) ---
+# --- Window titles (passed to terminal tab) ---
 set -g set-titles on
 set -g set-titles-string "#{pane_title}"
 setw -g automatic-rename on
 
-# --- Clipboard (all copy operations go to macOS clipboard) ---
-set -s copy-command "pbcopy"
+# --- Clipboard (all copy operations go to system clipboard) ---
+set -s copy-command "__CLIPBOARD_CMD__"
 
 # Mouse drag copies to clipboard
-bind -T copy-mode MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "pbcopy"
-bind -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "pbcopy"
+bind -T copy-mode MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "__CLIPBOARD_CMD__"
+bind -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "__CLIPBOARD_CMD__"
 
 # Keyboard copy
-bind -T copy-mode Enter send-keys -X copy-pipe-and-cancel "pbcopy"
-bind -T copy-mode-vi y send-keys -X copy-pipe-and-cancel "pbcopy"
-bind -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel "pbcopy"
+bind -T copy-mode Enter send-keys -X copy-pipe-and-cancel "__CLIPBOARD_CMD__"
+bind -T copy-mode-vi y send-keys -X copy-pipe-and-cancel "__CLIPBOARD_CMD__"
+bind -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel "__CLIPBOARD_CMD__"
 
 # --- Pane borders ---
 set -g pane-border-style "fg=colour238"
 set -g pane-active-border-style "fg=cyan"
 TMUX
+
+# Replace clipboard placeholder with OS-appropriate command
+if $IS_MACOS; then
+  CLIP_CMD="pbcopy"
+else
+  if command -v wl-copy &>/dev/null; then
+    CLIP_CMD="wl-copy"
+  elif command -v xclip &>/dev/null; then
+    CLIP_CMD="xclip -selection clipboard"
+  elif command -v xsel &>/dev/null; then
+    CLIP_CMD="xsel --clipboard --input"
+  else
+    CLIP_CMD="xclip -selection clipboard"
+  fi
+fi
+sed_inplace "s|__CLIPBOARD_CMD__|$CLIP_CMD|g" ~/.tmux.conf
+
 # Reload config if inside tmux (new settings take effect without restart)
 [[ -n "$TMUX" ]] && tmux source-file ~/.tmux.conf 2>/dev/null || true
 fi
@@ -164,16 +230,17 @@ cat > ~/.zshrc << 'ZSHRC'
 # Zsh Config
 # =============================================================================
 
-# --- Homebrew ---
-eval "$(/opt/homebrew/bin/brew shellenv)" 2>/dev/null || true
+# --- Homebrew (macOS) ---
+[[ -f /opt/homebrew/bin/brew ]] && eval "$(/opt/homebrew/bin/brew shellenv)"
 
-# --- Local binaries (claude, etc.) ---
-export PATH="$HOME/.local/bin:$PATH"
+# --- Local binaries (claude, bun, etc.) ---
+export PATH="$HOME/.local/bin:$HOME/.bun/bin:$PATH"
 
 # --- tmux auto-start ---
 # Set USE_TMUX=false in ~/.zshrc to disable tmux auto-start
 USE_TMUX=__TMUX_TOGGLE__
-if [[ "$USE_TMUX" == "true" ]] && command -v tmux &>/dev/null && [[ -z "$TMUX" ]] && [[ "$TERM_PROGRAM" == "Apple_Terminal" || "$TERM_PROGRAM" == "iTerm.app" ]]; then
+if [[ "$USE_TMUX" == "true" ]] && command -v tmux &>/dev/null && [[ -z "$TMUX" ]] && \
+   [[ "$TERM_PROGRAM" == "Apple_Terminal" || "$TERM_PROGRAM" == "iTerm.app" || -n "$DISPLAY" || -n "$WAYLAND_DISPLAY" ]]; then
   tmux new-session && exit
 fi
 
@@ -195,8 +262,10 @@ bindkey "^[[A" up-line-or-beginning-search
 bindkey "^[[B" down-line-or-beginning-search
 
 # --- Tab completion ---
-# Extra completions from zsh-completions
-FPATH=$(brew --prefix)/share/zsh-completions:$FPATH
+# Homebrew zsh-completions (macOS)
+[[ -d "$(brew --prefix 2>/dev/null)/share/zsh-completions" ]] && FPATH="$(brew --prefix)/share/zsh-completions:$FPATH"
+# Git-cloned zsh-completions (Linux)
+[[ -d "$HOME/.zsh/zsh-completions/src" ]] && fpath=($HOME/.zsh/zsh-completions/src $fpath)
 autoload -Uz compinit && compinit
 zstyle ':completion:*' menu select
 zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'
@@ -204,15 +273,24 @@ zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
 
 # --- Plugins ---
 # Fish-like autosuggestions (grey ghost text, → to accept)
-source $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+for _f in {$(brew --prefix 2>/dev/null),/usr}/share/zsh-autosuggestions/zsh-autosuggestions.zsh; do
+  [[ -f "$_f" ]] && source "$_f" && break
+done
 ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=240'
 ZSH_AUTOSUGGEST_STRATEGY=(history completion)
 
 # Syntax highlighting (commands turn green/red as you type)
-source $(brew --prefix)/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+for _f in {$(brew --prefix 2>/dev/null),/usr}/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh; do
+  [[ -f "$_f" ]] && source "$_f" && break
+done
 
 # fzf fuzzy search (Ctrl+R for history, Ctrl+T for files)
-[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+if [[ -f ~/.fzf.zsh ]]; then
+  source ~/.fzf.zsh
+elif [[ -d /usr/share/doc/fzf/examples ]]; then
+  source /usr/share/doc/fzf/examples/key-bindings.zsh
+  source /usr/share/doc/fzf/examples/completion.zsh
+fi
 export FZF_DEFAULT_OPTS='--height 40% --layout=reverse --border --color=fg:#f8f8f2,bg:#282a36,hl:#bd93f9,fg+:#f8f8f2,bg+:#44475a,hl+:#bd93f9,info:#ffb86c,prompt:#50fa7b,pointer:#ff79c6,marker:#ff79c6'
 
 # Use ripgrep/fd with fzf if available
@@ -226,7 +304,7 @@ command -v zoxide &>/dev/null && eval "$(zoxide init zsh)"
 eval "$(starship init zsh)"
 
 # --- True color support (macOS 26+) ---
-if [[ "$(sw_vers -productVersion 2>/dev/null)" == 26.* ]]; then
+if [[ -z "$COLORTERM" ]] && [[ "$(sw_vers -productVersion 2>/dev/null)" == 26.* ]]; then
   export COLORTERM=truecolor
 fi
 
@@ -241,6 +319,7 @@ alias ...='cd ../..'
 alias gs='git status'
 alias gl='git log --oneline -20'
 alias gd='git diff'
+command -v fdfind &>/dev/null && ! command -v fd &>/dev/null && alias fd='fdfind'
 
 # --- Word boundaries (stop at /, ., - like macOS) ---
 WORDCHARS=''
@@ -259,7 +338,7 @@ bindkey '\e^M' self-insert                # Option+Enter — insert newline (mul
 ZSHRC
 
 # Replace tmux toggle placeholder with actual value
-sed -i '' "s/__TMUX_TOGGLE__/$TMUX_TOGGLE/" ~/.zshrc
+sed_inplace "s/__TMUX_TOGGLE__/$TMUX_TOGGLE/" ~/.zshrc
 
 # --- 10. Starship config ---
 mkdir -p ~/.config
@@ -303,32 +382,49 @@ echo ""
 read -p "🔤 Install Monaspace Nerd Font? (icons for Starship + dev tools) [y/N] " -n 1 -r INSTALL_FONT < /dev/tty
 echo ""
 if [[ $INSTALL_FONT =~ ^[Yy]$ ]]; then
-  brew install --cask font-monaspice-nerd-font
+  if $IS_MACOS; then
+    brew install --cask font-monaspice-nerd-font
+  else
+    FONT_DIR="$HOME/.local/share/fonts"
+    mkdir -p "$FONT_DIR"
+    FONT_URL="https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Monaspace.tar.xz"
+    echo "   Downloading Monaspace Nerd Font..."
+    curl -fsSL "$FONT_URL" -o /tmp/Monaspace.tar.xz
+    tar -xf /tmp/Monaspace.tar.xz -C "$FONT_DIR"
+    rm -f /tmp/Monaspace.tar.xz
+    fc-cache -fv "$FONT_DIR" >/dev/null 2>&1
+  fi
   echo "   ✅ Monaspace Nerd Font installed"
 fi
 
-# --- 12. Terminal.app profile (optional) ---
-echo ""
-read -p "🎨 Import Dmythro Terminal.app profile? (dark theme, MonaspiceNe NFM 14pt) [y/N] " -n 1 -r INSTALL_PROFILE < /dev/tty
-echo ""
-if [[ $INSTALL_PROFILE =~ ^[Yy]$ ]]; then
-  curl -sL "${REPO_RAW}/Dmythro.terminal" -o /tmp/Dmythro.terminal
-  open /tmp/Dmythro.terminal
-  sleep 1
-  defaults write com.apple.Terminal "Default Window Settings" -string "Dmythro"
-  defaults write com.apple.Terminal "Startup Window Settings" -string "Dmythro"
-  echo "   ✅ Profile imported and set as default"
+# --- 12. Terminal.app profile (macOS only) ---
+if $IS_MACOS; then
+  echo ""
+  read -p "🎨 Import Dmythro Terminal.app profile? (dark theme, MonaspiceNe NFM 14pt) [y/N] " -n 1 -r INSTALL_PROFILE < /dev/tty
+  echo ""
+  if [[ $INSTALL_PROFILE =~ ^[Yy]$ ]]; then
+    curl -sL "${REPO_RAW}/Dmythro.terminal" -o /tmp/Dmythro.terminal
+    open /tmp/Dmythro.terminal
+    sleep 1
+    defaults write com.apple.Terminal "Default Window Settings" -string "Dmythro"
+    defaults write com.apple.Terminal "Startup Window Settings" -string "Dmythro"
+    echo "   ✅ Profile imported and set as default"
+  fi
 fi
 
 # --- 13. Done ---
 echo ""
-if [[ $INSTALL_PROFILE =~ ^[Yy]$ ]]; then
+if $IS_MACOS && [[ $INSTALL_PROFILE =~ ^[Yy]$ ]]; then
 echo "⚠️  Manual step for Option+Arrow word jumping:"
 echo "   Terminal.app → Settings → Profiles → Dmythro → Keyboard"
 echo "   ✅ Check 'Use Option as Meta key'"
 echo ""
 fi
-echo "✅ Done! Quit Terminal.app (Cmd+Q) and reopen to see all changes."
+if $IS_MACOS; then
+  echo "✅ Done! Quit Terminal.app (Cmd+Q) and reopen to see all changes."
+else
+  echo "✅ Done! Close and reopen your terminal to see all changes."
+fi
 echo ""
 echo "📋 What you got:"
 echo "   • Prefix history search — type 'git' then ↑ to search"
@@ -340,15 +436,17 @@ echo "   • Option+← / Option+→ for word jumping"
 echo "   • Option+Delete stops at /, ., - (macOS-like word boundaries)"
 echo "   • Option+Enter for multiline commands (useful with code agents)"
 echo "   • Tab/window title shows current dir and command"
-if [[ $INSTALL_PROFILE =~ ^[Yy]$ ]]; then
+if $IS_MACOS && [[ $INSTALL_PROFILE =~ ^[Yy]$ ]]; then
 echo "   • Dark theme with MonaspiceNe NFM 14pt"
 fi
 if [[ $INSTALL_FONT =~ ^[Yy]$ ]]; then
-if [[ $INSTALL_PROFILE =~ ^[Yy]$ ]]; then
+if $IS_MACOS && [[ $INSTALL_PROFILE =~ ^[Yy]$ ]]; then
 echo "   • Monaspace Nerd Font installed (already set in profile)"
-else
+elif $IS_MACOS; then
 echo "   • Monaspace Nerd Font installed — set it in Terminal.app:"
 echo "     Settings > Profiles > Font > Change > MonaspiceNe Nerd Font"
+else
+echo "   • Monaspace Nerd Font installed to ~/.local/share/fonts"
 fi
 fi
 if [[ $INSTALL_TMUX =~ ^[Yy]$ ]]; then
@@ -363,7 +461,9 @@ echo "   • Prefix + HJKL resize panes (arrow keys unbound — no zsh conflicts
 echo "   • Prefix + z    zoom/unzoom pane"
 echo "   • Prefix + x    close pane"
 echo "   • Prefix + c    new window  •  Prefix + n/p  next/prev window"
+if $IS_MACOS; then
 echo "   • Note: Cmd+D is Terminal.app's own split (horizontal only, shared session) — use tmux instead"
+fi
 fi
 if [[ $INSTALL_DEV =~ ^[Yy]$ ]]; then
 echo "   • Dev tools: gh, bun, ripgrep (rg), fd, zoxide (z), delta"
@@ -373,11 +473,28 @@ echo "   • git diff/log now uses delta with syntax highlighting"
 fi
 echo ""
 echo "   🤖 AI coding agents — install any when ready:"
+if $IS_MACOS; then
 echo "      brew install opencode          # open-source terminal agent"
 echo "      brew install --cask claude-code # Anthropic"
 echo "      brew install --cask codex       # OpenAI (open source)"
 echo "      brew install gemini-cli         # Google (open source)"
 echo "      brew install aider              # multi-model pair programming"
+else
+echo "      npm install -g @anthropic-ai/claude-code  # Anthropic"
+echo "      npm install -g @openai/codex              # OpenAI (open source)"
+echo "      pip install aider-chat                    # multi-model pair programming"
+echo "      # OpenCode: see https://opencode.ai"
+echo "      # Gemini CLI: see https://github.com/google-gemini/gemini-cli"
+fi
 echo ""
+if $IS_LINUX && [[ "$SHELL" != *"/zsh" ]]; then
+echo "⚠️  Your default shell is not zsh. Run this to switch:"
+echo "   chsh -s \$(which zsh)"
+echo ""
+fi
+if $IS_MACOS; then
 echo "💡 To use on another Mac, run:"
+else
+echo "💡 To use on another machine, run:"
+fi
 echo "   curl -sL https://raw.githubusercontent.com/dmythro/terminal-setup/main/setup-terminal.sh | bash"
