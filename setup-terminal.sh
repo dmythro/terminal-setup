@@ -1,14 +1,12 @@
 #!/bin/bash
 # =============================================================================
-# macOS Terminal.app Setup
-# Run: curl -sL https://gist.githubusercontent.com/dmythro/3ca5d026a1f0616507ab49bf331ee87c/raw/setup-terminal.sh | bash
+# macOS Terminal Setup
+# Run: curl -sL https://raw.githubusercontent.com/dmythro/terminal-setup/main/setup-terminal.sh | bash
 # =============================================================================
 
 set -e
 
-# ⚠️  Set this to your gist ID after publishing
-GIST_ID="3ca5d026a1f0616507ab49bf331ee87c"
-GIST_RAW="https://gist.githubusercontent.com/raw/${GIST_ID}"
+REPO_RAW="https://raw.githubusercontent.com/dmythro/terminal-setup/main"
 
 echo "🚀 Setting up terminal..."
 
@@ -41,10 +39,49 @@ if [[ $INSTALL_DEV =~ ^[Yy]$ ]]; then
   echo "   ✅ Dev tools installed"
 fi
 
-# --- 5. Install fzf key bindings ---
+# --- 5. Optional AI coding agents ---
+echo ""
+read -p "🤖 Install AI coding agent CLIs? [y/N] " -n 1 -r INSTALL_AGENTS
+echo ""
+if [[ $INSTALL_AGENTS =~ ^[Yy]$ ]]; then
+  AGENT_CASKS=()
+  AGENT_FORMULAS=()
+
+  echo "   Select agents to install (each requires its own API key/login):"
+  echo ""
+
+  read -p "   OpenCode — open-source terminal agent [Y/n] " -n 1 -r; echo ""
+  [[ ! $REPLY =~ ^[Nn]$ ]] && AGENT_FORMULAS+=(opencode)
+
+  read -p "   Claude Code — Anthropic [Y/n] " -n 1 -r; echo ""
+  [[ ! $REPLY =~ ^[Nn]$ ]] && AGENT_CASKS+=(claude-code)
+
+  read -p "   Codex — OpenAI (open source) [y/N] " -n 1 -r; echo ""
+  [[ $REPLY =~ ^[Yy]$ ]] && AGENT_CASKS+=(codex)
+
+  read -p "   Gemini CLI — Google (open source) [y/N] " -n 1 -r; echo ""
+  [[ $REPLY =~ ^[Yy]$ ]] && AGENT_FORMULAS+=(gemini-cli)
+
+  read -p "   Aider — multi-model pair programming (open source) [y/N] " -n 1 -r; echo ""
+  [[ $REPLY =~ ^[Yy]$ ]] && AGENT_FORMULAS+=(aider)
+
+  if [[ ${#AGENT_CASKS[@]} -gt 0 ]]; then
+    brew install --cask "${AGENT_CASKS[@]}"
+  fi
+  if [[ ${#AGENT_FORMULAS[@]} -gt 0 ]]; then
+    brew install "${AGENT_FORMULAS[@]}"
+  fi
+
+  INSTALLED_AGENTS=("${AGENT_CASKS[@]}" "${AGENT_FORMULAS[@]}")
+  if [[ ${#INSTALLED_AGENTS[@]} -gt 0 ]]; then
+    echo "   ✅ AI agents installed: ${INSTALLED_AGENTS[*]}"
+  fi
+fi
+
+# --- 6. Install fzf key bindings ---
 yes | $(brew --prefix)/opt/fzf/install --key-bindings --completion --no-update-rc 2>/dev/null || true
 
-# --- 6. Write tmux.conf (if tmux selected) ---
+# --- 7. Write tmux.conf (if tmux selected) ---
 if [[ $INSTALL_TMUX =~ ^[Yy]$ ]]; then
 tmux kill-server 2>/dev/null || true
 echo "📝 Writing ~/.tmux.conf..."
@@ -135,7 +172,7 @@ set -g pane-active-border-style "fg=cyan"
 TMUX
 fi
 
-# --- 7. Write .zshrc ---
+# --- 8. Write .zshrc ---
 echo "📝 Writing ~/.zshrc..."
 
 # Determine tmux toggle value
@@ -239,7 +276,7 @@ ZSHRC
 # Replace tmux toggle placeholder with actual value
 sed -i '' "s/__TMUX_TOGGLE__/$TMUX_TOGGLE/" ~/.zshrc
 
-# --- 8. Starship config ---
+# --- 9. Starship config ---
 mkdir -p ~/.config
 cat > ~/.config/starship.toml << 'STARSHIP'
 format = """
@@ -276,12 +313,12 @@ symbol = " "
 symbol = " "
 STARSHIP
 
-# --- 9. Terminal.app profile (optional) ---
+# --- 10. Terminal.app profile (optional) ---
 echo ""
 read -p "🎨 Import Dmythro Terminal.app profile? (dark theme, Menlo Regular 14pt) [y/N] " -n 1 -r INSTALL_PROFILE
 echo ""
 if [[ $INSTALL_PROFILE =~ ^[Yy]$ ]]; then
-  curl -sL "${GIST_RAW}/Dmythro.terminal" -o /tmp/Dmythro.terminal
+  curl -sL "${REPO_RAW}/Dmythro.terminal" -o /tmp/Dmythro.terminal
   open /tmp/Dmythro.terminal
   sleep 1
   defaults write com.apple.Terminal "Default Window Settings" -string "Dmythro"
@@ -289,7 +326,7 @@ if [[ $INSTALL_PROFILE =~ ^[Yy]$ ]]; then
   echo "   ✅ Profile imported and set as default"
 fi
 
-# --- 10. Done ---
+# --- 11. Done ---
 echo ""
 if [[ $INSTALL_PROFILE =~ ^[Yy]$ ]]; then
 echo "⚠️  Manual step for Option+Arrow word jumping:"
@@ -330,6 +367,9 @@ if [[ $INSTALL_DEV =~ ^[Yy]$ ]]; then
 echo "   • Dev tools: gh, bun, ripgrep (rg), fd"
 echo "   • fzf uses rg/fd for faster file/dir search"
 fi
+if [[ $INSTALL_AGENTS =~ ^[Yy]$ ]] && [[ ${#INSTALLED_AGENTS[@]} -gt 0 ]]; then
+echo "   • AI agents: ${INSTALLED_AGENTS[*]}"
+fi
 echo ""
 echo "💡 To use on another Mac, run:"
-echo "   curl -sL https://gist.githubusercontent.com/dmythro/3ca5d026a1f0616507ab49bf331ee87c/raw/setup-terminal.sh | bash"
+echo "   curl -sL https://raw.githubusercontent.com/dmythro/terminal-setup/main/setup-terminal.sh | bash"

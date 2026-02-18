@@ -1,8 +1,8 @@
 #!/bin/bash
 # =============================================================================
-# macOS Terminal.app Reset
+# macOS Terminal Reset
 # Undoes setup-terminal.sh — removes configs and optionally uninstalls packages
-# Run: curl -sL https://gist.githubusercontent.com/dmythro/3ca5d026a1f0616507ab49bf331ee87c/raw/reset-terminal.sh | bash
+# Run: curl -sL https://raw.githubusercontent.com/dmythro/terminal-setup/main/reset-terminal.sh | bash
 # =============================================================================
 
 set -e
@@ -65,11 +65,18 @@ if command -v brew &>/dev/null; then
   read -p "📦 Uninstall packages installed by setup-terminal.sh? [y/N] " -n 1 -r UNINSTALL_PKGS
   echo ""
   if [[ $UNINSTALL_PKGS =~ ^[Yy]$ ]]; then
-    PKGS=(fzf zsh-autosuggestions zsh-syntax-highlighting starship tmux gh bun ripgrep fd)
+    PKGS=(fzf zsh-autosuggestions zsh-syntax-highlighting starship tmux gh bun ripgrep fd aider gemini-cli opencode)
+    CASKS=(claude-code codex)
     for pkg in "${PKGS[@]}"; do
       if brew list "$pkg" &>/dev/null; then
         echo "   Removing $pkg..."
         brew uninstall "$pkg" 2>/dev/null || true
+      fi
+    done
+    for cask in "${CASKS[@]}"; do
+      if brew list --cask "$cask" &>/dev/null; then
+        echo "   Removing $cask..."
+        brew uninstall --cask "$cask" 2>/dev/null || true
       fi
     done
     echo "   ✅ Packages uninstalled"
