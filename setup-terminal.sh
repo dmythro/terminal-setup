@@ -141,6 +141,12 @@ bind -T copy-mode Enter send-keys -X copy-pipe-and-cancel "pbcopy"
 bind -T copy-mode-vi y send-keys -X copy-pipe-and-cancel "pbcopy"
 bind -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel "pbcopy"
 
+# --- Clear current pane: clear screen + wipe scrollback ---
+bind -n C-k send-keys C-l \; clear-history
+
+# --- Auto-destroy session on detach (no orphaned sessions) ---
+set -g destroy-unattached on
+
 # --- Pane borders ---
 set -g pane-border-style "fg=colour238"
 set -g pane-active-border-style "fg=cyan"
@@ -174,7 +180,7 @@ export PATH="$HOME/.local/bin:$PATH"
 # Set USE_TMUX=false in ~/.zshrc to disable tmux auto-start
 USE_TMUX=__TMUX_TOGGLE__
 if [[ "$USE_TMUX" == "true" ]] && command -v tmux &>/dev/null && [[ -z "$TMUX" ]] && [[ "$TERM_PROGRAM" == "Apple_Terminal" || "$TERM_PROGRAM" == "iTerm.app" ]]; then
-  tmux new-session && exit
+  tmux new-session
 fi
 
 # --- History ---
@@ -256,6 +262,14 @@ bindkey '^[[1;3C' forward-word           # Option+Right
 bindkey '^U' backward-kill-line           # Ctrl+U — delete to start of line
 bindkey '^[^H' backward-kill-line         # Option+Shift+Backspace
 bindkey '\e^M' self-insert                # Option+Enter — insert newline (multiline editing)
+
+# --- Ctrl+K — clear screen + scrollback (non-tmux fallback) ---
+function clear-screen-and-scrollback() {
+  printf '\e[2J\e[3J\e[H'
+  zle reset-prompt
+}
+zle -N clear-screen-and-scrollback
+bindkey '^K' clear-screen-and-scrollback
 ZSHRC
 
 # Replace tmux toggle placeholder with actual value

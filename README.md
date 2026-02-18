@@ -135,6 +135,7 @@ These only work inside a tmux session. For the full list of default tmux keys, s
 | `Prefix + n` / `p` | Next / previous window |
 | `Prefix + z` | Zoom/unzoom pane |
 | `Prefix + x` | Close pane |
+| `Ctrl+K` | Clear current pane — reset screen, wipe scrollback, redraw prompt |
 
 > Arrow keys are intentionally unbound in tmux to avoid conflicts with Option+Arrow word jumping in zsh.
 
