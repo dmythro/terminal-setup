@@ -19,11 +19,12 @@ fi
 
 # --- 2. Core packages ---
 echo "📦 Installing core packages..."
-brew install fzf zsh-autosuggestions zsh-syntax-highlighting starship
+brew install fzf zsh-autosuggestions zsh-syntax-highlighting zsh-completions starship
+chmod go-w "$(brew --prefix)/share/zsh-completions" "$(brew --prefix)/share"
 
 # --- 3. Optional tmux ---
 echo ""
-read -p "📦 Install tmux for split panes? (auto-starts per session) [y/N] " -n 1 -r INSTALL_TMUX
+read -p "📦 Install tmux for split panes? (auto-starts per session) [y/N] " -n 1 -r INSTALL_TMUX < /dev/tty
 echo ""
 if [[ $INSTALL_TMUX =~ ^[Yy]$ ]]; then
   brew install tmux
@@ -32,58 +33,32 @@ fi
 
 # --- 4. Optional dev tools ---
 echo ""
-read -p "📦 Install dev tools? (gh, bun, ripgrep, fd) [y/N] " -n 1 -r INSTALL_DEV
+read -p "📦 Install dev tools? (gh, bun, ripgrep, fd, zoxide, delta) [y/N] " -n 1 -r INSTALL_DEV < /dev/tty
 echo ""
 if [[ $INSTALL_DEV =~ ^[Yy]$ ]]; then
-  brew install gh bun ripgrep fd
+  brew install gh bun ripgrep fd zoxide git-delta
   echo "   ✅ Dev tools installed"
 fi
 
-# --- 5. Optional AI coding agents ---
-echo ""
-read -p "🤖 Install AI coding agent CLIs? [y/N] " -n 1 -r INSTALL_AGENTS
-echo ""
-if [[ $INSTALL_AGENTS =~ ^[Yy]$ ]]; then
-  AGENT_CASKS=()
-  AGENT_FORMULAS=()
-
-  echo "   Select agents to install (each requires its own API key/login):"
-  echo ""
-
-  read -p "   OpenCode — open-source terminal agent [Y/n] " -n 1 -r; echo ""
-  [[ ! $REPLY =~ ^[Nn]$ ]] && AGENT_FORMULAS+=(opencode)
-
-  read -p "   Claude Code — Anthropic [Y/n] " -n 1 -r; echo ""
-  [[ ! $REPLY =~ ^[Nn]$ ]] && AGENT_CASKS+=(claude-code)
-
-  read -p "   Codex — OpenAI (open source) [y/N] " -n 1 -r; echo ""
-  [[ $REPLY =~ ^[Yy]$ ]] && AGENT_CASKS+=(codex)
-
-  read -p "   Gemini CLI — Google (open source) [y/N] " -n 1 -r; echo ""
-  [[ $REPLY =~ ^[Yy]$ ]] && AGENT_FORMULAS+=(gemini-cli)
-
-  read -p "   Aider — multi-model pair programming (open source) [y/N] " -n 1 -r; echo ""
-  [[ $REPLY =~ ^[Yy]$ ]] && AGENT_FORMULAS+=(aider)
-
-  if [[ ${#AGENT_CASKS[@]} -gt 0 ]]; then
-    brew install --cask "${AGENT_CASKS[@]}"
-  fi
-  if [[ ${#AGENT_FORMULAS[@]} -gt 0 ]]; then
-    brew install "${AGENT_FORMULAS[@]}"
-  fi
-
-  INSTALLED_AGENTS=("${AGENT_CASKS[@]}" "${AGENT_FORMULAS[@]}")
-  if [[ ${#INSTALLED_AGENTS[@]} -gt 0 ]]; then
-    echo "   ✅ AI agents installed: ${INSTALLED_AGENTS[*]}"
-  fi
-fi
+# --- 5. AI coding agents (listed in summary, not installed) ---
 
 # --- 6. Install fzf key bindings ---
 yes | $(brew --prefix)/opt/fzf/install --key-bindings --completion --no-update-rc 2>/dev/null || true
 
-# --- 7. Write tmux.conf (if tmux selected) ---
+# --- 7. Configure git to use delta (if installed) ---
+if command -v delta &>/dev/null; then
+  echo "📝 Configuring git to use delta for diffs..."
+  git config --global core.pager delta
+  git config --global interactive.diffFilter "delta --color-only"
+  git config --global delta.navigate true
+  git config --global delta.dark true
+  git config --global delta.line-numbers true
+  git config --global delta.syntax-theme Dracula
+  git config --global merge.conflictstyle zdiff3
+fi
+
+# --- 8. Write tmux.conf (if tmux selected) ---
 if [[ $INSTALL_TMUX =~ ^[Yy]$ ]]; then
-tmux kill-server 2>/dev/null || true
 echo "📝 Writing ~/.tmux.conf..."
 cat > ~/.tmux.conf << 'TMUX'
 # =============================================================================
@@ -93,9 +68,9 @@ cat > ~/.tmux.conf << 'TMUX'
 # --- Mouse support (resize panes by dragging borders, click to select) ---
 set -g mouse on
 
-# --- Terminal colors ---
-set -g default-terminal "screen-256color"
-set -ga terminal-overrides ",xterm-256color:Tc"
+# --- Terminal colors (true color) ---
+set -g default-terminal "tmux-256color"
+set -ga terminal-overrides ",xterm-256color:Tc,tmux-256color:Tc"
 
 # --- No delay on Escape (important for zsh/vim) ---
 set -sg escape-time 0
@@ -151,7 +126,7 @@ set -g window-status-style "fg=colour244"
 
 # --- Window titles (passed to Terminal.app tab) ---
 set -g set-titles on
-set -g set-titles-string "#{b:pane_current_path} · #{pane_current_command}"
+set -g set-titles-string "#{pane_title}"
 setw -g automatic-rename on
 
 # --- Clipboard (all copy operations go to macOS clipboard) ---
@@ -170,9 +145,11 @@ bind -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel "pbcopy"
 set -g pane-border-style "fg=colour238"
 set -g pane-active-border-style "fg=cyan"
 TMUX
+# Reload config if inside tmux (new settings take effect without restart)
+[[ -n "$TMUX" ]] && tmux source-file ~/.tmux.conf 2>/dev/null || true
 fi
 
-# --- 8. Write .zshrc ---
+# --- 9. Write .zshrc ---
 echo "📝 Writing ~/.zshrc..."
 
 # Determine tmux toggle value
@@ -186,6 +163,19 @@ cat > ~/.zshrc << 'ZSHRC'
 # =============================================================================
 # Zsh Config
 # =============================================================================
+
+# --- Homebrew ---
+eval "$(/opt/homebrew/bin/brew shellenv)" 2>/dev/null || true
+
+# --- Local binaries (claude, etc.) ---
+export PATH="$HOME/.local/bin:$PATH"
+
+# --- tmux auto-start ---
+# Set USE_TMUX=false in ~/.zshrc to disable tmux auto-start
+USE_TMUX=__TMUX_TOGGLE__
+if [[ "$USE_TMUX" == "true" ]] && command -v tmux &>/dev/null && [[ -z "$TMUX" ]] && [[ "$TERM_PROGRAM" == "Apple_Terminal" || "$TERM_PROGRAM" == "iTerm.app" ]]; then
+  tmux new-session && exit
+fi
 
 # --- History ---
 HISTSIZE=50000
@@ -205,6 +195,8 @@ bindkey "^[[A" up-line-or-beginning-search
 bindkey "^[[B" down-line-or-beginning-search
 
 # --- Tab completion ---
+# Extra completions from zsh-completions
+FPATH=$(brew --prefix)/share/zsh-completions:$FPATH
 autoload -Uz compinit && compinit
 zstyle ':completion:*' menu select
 zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'
@@ -227,20 +219,20 @@ export FZF_DEFAULT_OPTS='--height 40% --layout=reverse --border --color=fg:#f8f8
 command -v rg &>/dev/null && export FZF_DEFAULT_COMMAND='rg --files --hidden --glob "!.git"'
 command -v fd &>/dev/null && export FZF_ALT_C_COMMAND='fd --type d --hidden --exclude .git'
 
+# --- Zoxide (smart cd) ---
+command -v zoxide &>/dev/null && eval "$(zoxide init zsh)"
+
 # --- Starship prompt ---
 eval "$(starship init zsh)"
 
-# --- Homebrew ---
-eval "$(/opt/homebrew/bin/brew shellenv)" 2>/dev/null || true
-
-# --- Local binaries (claude, etc.) ---
-export PATH="$HOME/.local/bin:$PATH"
-
-# --- Terminal title (when not using tmux) ---
-if [[ -z "$TMUX" ]]; then
-  precmd()  { print -Pn "\e]0;%1~ · zsh\a" }
-  preexec() { print -Pn "\e]0;%1~ · ${1%% *}\a" }
+# --- True color support (macOS 26+) ---
+if [[ "$(sw_vers -productVersion 2>/dev/null)" == 26.* ]]; then
+  export COLORTERM=truecolor
 fi
+
+# --- Terminal title ---
+precmd()  { print -Pn "\e]0;%1~ · zsh\a" }
+preexec() { print -Pn "\e]0;%1~ · ${1%% *}\a" }
 
 # --- Aliases ---
 alias ll='ls -lAh --color=auto'
@@ -264,19 +256,12 @@ bindkey '^[[1;3C' forward-word           # Option+Right
 bindkey '^U' backward-kill-line           # Ctrl+U — delete to start of line
 bindkey '^[^H' backward-kill-line         # Option+Shift+Backspace
 bindkey '\e^M' self-insert                # Option+Enter — insert newline (multiline editing)
-
-# --- tmux auto-start ---
-# Set USE_TMUX=false in ~/.zshrc to disable tmux auto-start
-USE_TMUX=__TMUX_TOGGLE__
-if [[ "$USE_TMUX" == "true" ]] && command -v tmux &>/dev/null && [[ -z "$TMUX" ]] && [[ "$TERM_PROGRAM" == "Apple_Terminal" || "$TERM_PROGRAM" == "iTerm.app" ]]; then
-  exec tmux new-session
-fi
 ZSHRC
 
 # Replace tmux toggle placeholder with actual value
 sed -i '' "s/__TMUX_TOGGLE__/$TMUX_TOGGLE/" ~/.zshrc
 
-# --- 9. Starship config ---
+# --- 10. Starship config ---
 mkdir -p ~/.config
 cat > ~/.config/starship.toml << 'STARSHIP'
 format = """
@@ -313,9 +298,18 @@ symbol = " "
 symbol = " "
 STARSHIP
 
-# --- 10. Terminal.app profile (optional) ---
+# --- 11. Optional Nerd Font ---
 echo ""
-read -p "🎨 Import Dmythro Terminal.app profile? (dark theme, Menlo Regular 14pt) [y/N] " -n 1 -r INSTALL_PROFILE
+read -p "🔤 Install Monaspace Nerd Font? (icons for Starship + dev tools) [y/N] " -n 1 -r INSTALL_FONT < /dev/tty
+echo ""
+if [[ $INSTALL_FONT =~ ^[Yy]$ ]]; then
+  brew install --cask font-monaspice-nerd-font
+  echo "   ✅ Monaspace Nerd Font installed"
+fi
+
+# --- 12. Terminal.app profile (optional) ---
+echo ""
+read -p "🎨 Import Dmythro Terminal.app profile? (dark theme, MonaspiceNe NFM 14pt) [y/N] " -n 1 -r INSTALL_PROFILE < /dev/tty
 echo ""
 if [[ $INSTALL_PROFILE =~ ^[Yy]$ ]]; then
   curl -sL "${REPO_RAW}/Dmythro.terminal" -o /tmp/Dmythro.terminal
@@ -326,7 +320,7 @@ if [[ $INSTALL_PROFILE =~ ^[Yy]$ ]]; then
   echo "   ✅ Profile imported and set as default"
 fi
 
-# --- 11. Done ---
+# --- 13. Done ---
 echo ""
 if [[ $INSTALL_PROFILE =~ ^[Yy]$ ]]; then
 echo "⚠️  Manual step for Option+Arrow word jumping:"
@@ -347,7 +341,15 @@ echo "   • Option+Delete stops at /, ., - (macOS-like word boundaries)"
 echo "   • Option+Enter for multiline commands (useful with code agents)"
 echo "   • Tab/window title shows current dir and command"
 if [[ $INSTALL_PROFILE =~ ^[Yy]$ ]]; then
-echo "   • Dark theme with Menlo Regular 14pt"
+echo "   • Dark theme with MonaspiceNe NFM 14pt"
+fi
+if [[ $INSTALL_FONT =~ ^[Yy]$ ]]; then
+if [[ $INSTALL_PROFILE =~ ^[Yy]$ ]]; then
+echo "   • Monaspace Nerd Font installed (already set in profile)"
+else
+echo "   • Monaspace Nerd Font installed — set it in Terminal.app:"
+echo "     Settings > Profiles > Font > Change > MonaspiceNe Nerd Font"
+fi
 fi
 if [[ $INSTALL_TMUX =~ ^[Yy]$ ]]; then
 echo ""
@@ -364,12 +366,18 @@ echo "   • Prefix + c    new window  •  Prefix + n/p  next/prev window"
 echo "   • Note: Cmd+D is Terminal.app's own split (horizontal only, shared session) — use tmux instead"
 fi
 if [[ $INSTALL_DEV =~ ^[Yy]$ ]]; then
-echo "   • Dev tools: gh, bun, ripgrep (rg), fd"
+echo "   • Dev tools: gh, bun, ripgrep (rg), fd, zoxide (z), delta"
 echo "   • fzf uses rg/fd for faster file/dir search"
+echo "   • z — smart cd that learns your frequent directories"
+echo "   • git diff/log now uses delta with syntax highlighting"
 fi
-if [[ $INSTALL_AGENTS =~ ^[Yy]$ ]] && [[ ${#INSTALLED_AGENTS[@]} -gt 0 ]]; then
-echo "   • AI agents: ${INSTALLED_AGENTS[*]}"
-fi
+echo ""
+echo "   🤖 AI coding agents — install any when ready:"
+echo "      brew install opencode          # open-source terminal agent"
+echo "      brew install --cask claude-code # Anthropic"
+echo "      brew install --cask codex       # OpenAI (open source)"
+echo "      brew install gemini-cli         # Google (open source)"
+echo "      brew install aider              # multi-model pair programming"
 echo ""
 echo "💡 To use on another Mac, run:"
 echo "   curl -sL https://raw.githubusercontent.com/dmythro/terminal-setup/main/setup-terminal.sh | bash"

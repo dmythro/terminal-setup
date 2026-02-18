@@ -26,6 +26,7 @@ curl -sL https://raw.githubusercontent.com/dmythro/terminal-setup/main/reset-ter
 | [fzf](https://github.com/junegunn/fzf) | Fuzzy finder — `Ctrl+R` for history, `Ctrl+T` for files |
 | [zsh-autosuggestions](https://github.com/zsh-users/zsh-autosuggestions) | Fish-like ghost text suggestions from history |
 | [zsh-syntax-highlighting](https://github.com/zsh-users/zsh-syntax-highlighting) | Commands turn green/red as you type |
+| [zsh-completions](https://github.com/zsh-users/zsh-completions) | Extended tab completions for hundreds of tools |
 | [Starship](https://starship.rs) | Fast cross-shell prompt — git branch, status, language versions, exec time |
 
 Plus a hand-tuned `~/.zshrc` with:
@@ -51,7 +52,7 @@ Includes a mouse-friendly `~/.tmux.conf`:
 - `Prefix + \|` / `Prefix + -` for vertical/horizontal splits
 - `Prefix + hjkl` for pane navigation (arrow keys unbound to avoid zsh conflicts)
 - `Prefix + HJKL` for pane resizing
-- 50K scrollback, 256-color support, no escape delay
+- 50K scrollback, true color support, no escape delay
 
 ### Optional — Dev Tools
 
@@ -61,6 +62,8 @@ Includes a mouse-friendly `~/.tmux.conf`:
 | [bun](https://bun.sh) | Fast JS/TS runtime, bundler, and package manager |
 | [ripgrep](https://github.com/BurntSushi/ripgrep) (`rg`) | Fast recursive search (also powers fzf file search) |
 | [fd](https://github.com/sharkdp/fd) | Fast `find` alternative (also powers fzf directory search) |
+| [zoxide](https://github.com/ajeetdsouza/zoxide) (`z`) | Smart `cd` — learns your frequent directories |
+| [delta](https://github.com/dandavison/delta) | Beautiful `git diff` with syntax highlighting and line numbers |
 
 ### Optional — AI Coding Agents
 
@@ -80,7 +83,7 @@ The setup includes an optional section for installing AI coding agent CLIs via H
 
 A dark theme profile (`Dmythro.terminal`) imported directly into Terminal.app:
 
-- Dark background, Menlo Regular 14pt, 120x36 window
+- Dark background, MonaspiceNe NFM 14pt, 120x36 window
 - Set as default profile on import
 - `Use Option as Meta key` pre-configured in the plist (may need manual toggle — the script will remind you)
 
@@ -100,6 +103,41 @@ A brief comparison to help you choose. All are terminal-based agents that can ed
 
 > Last updated: February 2026. Agent capabilities evolve quickly — check the official docs for current features.
 
+## macOS 26 Tahoe
+
+macOS 26 (Tahoe) introduced the [first major Terminal.app update in 24 years](https://www.macworld.com/article/2809620/macos-26-includes-a-new-look-for-the-terminal-app.html):
+
+- **24-bit true color** — colors render exactly as specified (no more 256-color approximation)
+- **Powerline font support** — Starship and other prompt tools can display icons and glyphs natively
+- **Liquid Glass themes** — new built-in visual design
+
+This setup automatically detects macOS 26+ and enables `COLORTERM=truecolor` for full color support. The tmux config uses `tmux-256color` with true color overrides.
+
+> **Check your version:** Apple menu > About This Mac, or run `sw_vers -productVersion` in Terminal. macOS 26.3 is the [current stable release](https://support.apple.com/en-us/122868) (February 2026).
+
+### Nerd Fonts
+
+To get the most out of Starship's icons and glyphs on macOS 26, use a [Nerd Font](https://www.nerdfonts.com) — a regular coding font patched with thousands of extra glyphs (file icons, git symbols, language logos). The fonts below all support **programming ligatures** and are available via Homebrew:
+
+> **Note:** Terminal.app on macOS 26 only renders `calt` (contextual alternates) — it does not support `liga`/`dlig` ligatures. For full ligature rendering, use [iTerm2](https://iterm2.com), [Kitty](https://sw.kovidgoyal.net/kitty/), or [WezTerm](https://wezfurlong.org/wezterm/).
+
+| Font | By | Ligatures | Box Drawing | Install |
+|------|----|:---------:|:-----------:|---------|
+| [Geist Mono](https://www.programmingfonts.org/#geistmono) | Vercel | Yes (SS11) | Partial | `brew install --cask font-geist-mono-nerd-font` |
+| [Cascadia Code](https://www.programmingfonts.org/#cascadiacode) | Microsoft | Yes | Complete | `brew install --cask font-caskaydia-mono-nerd-font` |
+| [Monaspace](https://monaspace.githubnext.com) | GitHub | Yes | Complete | `brew install --cask font-monaspice-nerd-font` |
+| [Iosevka](https://www.programmingfonts.org/#iosevka) | Belleve Invis | Yes | Complete | `brew install --cask font-iosevka-nerd-font` |
+
+**Geist Mono** — ligatures are off by default; enable Stylistic Set 11 (SS11) in your terminal's font settings. Box drawing characters were added in v1.5.0 but [some intersections are missing](https://github.com/vercel/geist-font/issues/64) (e.g. `├`), causing fallback to the system font — TUI apps with tables (lazygit, btop, opencode) may show gaps at those points. **Cascadia Code** and **Monaspace** have complete box drawing and render gapless tables.
+
+**Monaspace** — 5 variants (Neon, Argon, Xenon, Radon, Krypton) with "texture healing" for readability and variable weight support.
+
+**Iosevka** — extremely narrow and customizable, good for small screens and split panes.
+
+After installing, set the font in Terminal.app: **Settings > Profiles > Font > Change**.
+
+> Preview and compare fonts at [programmingfonts.org](https://www.programmingfonts.org).
+
 ## Why This Setup
 
 Setting up a productive terminal on a fresh Mac takes time. This script does it in one command with interactive prompts — no frameworks, no plugin managers, no bloat. Just Homebrew packages and plain config files.
@@ -110,6 +148,8 @@ The zsh configuration is optimized for working with AI coding agents:
 - **Large scrollback** (50K lines in both zsh and tmux) for reviewing agent output
 - **Fast prompt** ([Starship](https://starship.rs) is written in Rust) that doesn't slow down rapid command execution
 - **ripgrep + fd** integration for agents that rely on fast file search
+- **zoxide** for quick directory jumping across project repos
+- **delta** for readable diffs when reviewing agent-generated changes
 - **tmux** for persistent sessions that survive disconnects
 
 ## Files

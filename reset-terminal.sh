@@ -12,7 +12,7 @@ echo "   This will undo changes made by setup-terminal.sh"
 echo ""
 
 # --- 1. Remove config files ---
-read -p "🗑  Remove config files? (~/.zshrc, ~/.tmux.conf, ~/.config/starship.toml) [y/N] " -n 1 -r REMOVE_CONFIGS
+read -p "🗑  Remove config files? (~/.zshrc, ~/.tmux.conf, ~/.config/starship.toml) [y/N] " -n 1 -r REMOVE_CONFIGS < /dev/tty
 echo ""
 if [[ $REMOVE_CONFIGS =~ ^[Yy]$ ]]; then
   rm -f ~/.tmux.conf
@@ -29,7 +29,7 @@ fi
 
 # --- 2. Remove fzf key bindings ---
 if [[ -f ~/.fzf.zsh ]] || [[ -f ~/.fzf.bash ]]; then
-  read -p "🗑  Remove fzf key bindings? (~/.fzf.zsh, ~/.fzf.bash) [y/N] " -n 1 -r REMOVE_FZF
+  read -p "🗑  Remove fzf key bindings? (~/.fzf.zsh, ~/.fzf.bash) [y/N] " -n 1 -r REMOVE_FZF < /dev/tty
   echo ""
   if [[ $REMOVE_FZF =~ ^[Yy]$ ]]; then
     rm -f ~/.fzf.zsh ~/.fzf.bash
@@ -40,7 +40,7 @@ fi
 # --- 3. Reset Terminal.app profile ---
 CURRENT_PROFILE=$(defaults read com.apple.Terminal "Default Window Settings" 2>/dev/null || true)
 if [[ "$CURRENT_PROFILE" == "Dmythro" ]]; then
-  read -p "🎨 Reset Terminal.app profile to Basic? [y/N] " -n 1 -r RESET_PROFILE
+  read -p "🎨 Reset Terminal.app profile to Basic? [y/N] " -n 1 -r RESET_PROFILE < /dev/tty
   echo ""
   if [[ $RESET_PROFILE =~ ^[Yy]$ ]]; then
     defaults write com.apple.Terminal "Default Window Settings" -string "Basic"
@@ -51,7 +51,7 @@ fi
 
 # --- 4. Kill tmux if running ---
 if command -v tmux &>/dev/null && tmux list-sessions &>/dev/null 2>&1; then
-  read -p "🔌 Kill running tmux sessions? [y/N] " -n 1 -r KILL_TMUX
+  read -p "🔌 Kill running tmux sessions? [y/N] " -n 1 -r KILL_TMUX < /dev/tty
   echo ""
   if [[ $KILL_TMUX =~ ^[Yy]$ ]]; then
     tmux kill-server 2>/dev/null || true
@@ -62,11 +62,11 @@ fi
 # --- 5. Uninstall Homebrew packages ---
 if command -v brew &>/dev/null; then
   echo ""
-  read -p "📦 Uninstall packages installed by setup-terminal.sh? [y/N] " -n 1 -r UNINSTALL_PKGS
+  read -p "📦 Uninstall packages installed by setup-terminal.sh? [y/N] " -n 1 -r UNINSTALL_PKGS < /dev/tty
   echo ""
   if [[ $UNINSTALL_PKGS =~ ^[Yy]$ ]]; then
-    PKGS=(fzf zsh-autosuggestions zsh-syntax-highlighting starship tmux gh bun ripgrep fd aider gemini-cli opencode)
-    CASKS=(claude-code codex)
+    PKGS=(fzf zsh-autosuggestions zsh-syntax-highlighting zsh-completions starship tmux gh bun ripgrep fd zoxide git-delta aider gemini-cli opencode)
+    CASKS=(claude-code codex font-monaspice-nerd-font)
     for pkg in "${PKGS[@]}"; do
       if brew list "$pkg" &>/dev/null; then
         echo "   Removing $pkg..."
