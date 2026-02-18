@@ -16,6 +16,21 @@ To undo everything:
 curl -sL https://raw.githubusercontent.com/dmythro/terminal-setup/main/reset-terminal.sh | bash
 ```
 
+## Features
+
+- Fuzzy search for history, files, and directories (fzf)
+- Fish-like autosuggestions and syntax highlighting
+- Extended tab completions for hundreds of tools
+- Prefix history search — type a command then press `↑`
+- 50K command history with deduplication and cross-session sharing
+- Fast cross-shell prompt with git info and exec time (Starship)
+- macOS-native word jumping and deletion (Option+Arrow, Option+Delete)
+- Multiline command editing with Option+Enter
+- Optional: tmux with mouse support, split panes, and clipboard integration
+- Optional: dev tools — gh, bun, ripgrep, fd, zoxide, delta
+- Optional: Terminal.app dark theme profile
+- macOS 26 Tahoe true color support
+
 ## What You Get
 
 ### Core (always installed)
@@ -32,10 +47,6 @@ curl -sL https://raw.githubusercontent.com/dmythro/terminal-setup/main/reset-ter
 Plus a hand-tuned `~/.zshrc` with:
 
 - **50K command history** with deduplication and cross-session sharing
-- **Prefix history search** — type `git` then `↑` to find matching commands
-- **Tab completion** with case-insensitive matching and menu selection
-- **Option+Arrow** word jumping, **Option+Delete** word-boundary stops at `/`, `.`, `-`
-- **Option+Enter** for multiline editing (useful with AI agents)
 - Smart terminal tab titles showing current directory and command
 - Aliases: `ll`, `gs`, `gl`, `gd`, `..`, `...`
 
@@ -48,11 +59,9 @@ Plus a hand-tuned `~/.zshrc` with:
 Includes a mouse-friendly `~/.tmux.conf`:
 
 - Auto-starts per terminal session (toggle with `USE_TMUX=false` in `~/.zshrc`)
-- **Mouse support**: drag to copy (goes to macOS clipboard), drag borders to resize, scroll
-- `Prefix + \|` / `Prefix + -` for vertical/horizontal splits
-- `Prefix + hjkl` for pane navigation (arrow keys unbound to avoid zsh conflicts)
-- `Prefix + HJKL` for pane resizing
+- Mouse support: drag to select and copy, drag borders to resize, scroll to browse
 - 50K scrollback, true color support, no escape delay
+- See [Keyboard Shortcuts](#keyboard-shortcuts) for keybindings
 
 ### Optional — Dev Tools
 
@@ -86,6 +95,55 @@ A dark theme profile (`Dmythro.terminal`) imported directly into Terminal.app:
 - Dark background, MonaspiceNe NFM 14pt, 120x36 window
 - Set as default profile on import
 - `Use Option as Meta key` pre-configured in the plist (may need manual toggle — the script will remind you)
+
+## Keyboard Shortcuts
+
+### Shell (with or without tmux)
+
+These are zsh-level bindings — they work in any terminal, with or without tmux.
+
+| Key | Action |
+|-----|--------|
+| `Ctrl+R` | Fuzzy search history (fzf) |
+| `Ctrl+T` | Fuzzy find files (fzf) |
+| `Alt+C` | Fuzzy find and cd into directory (fzf) |
+| `↑` / `↓` | Prefix history search (type first, then arrow) |
+| `→` | Accept autosuggestion |
+| `Tab` | Menu-driven completion |
+| `Ctrl+A` / `Ctrl+E` | Beginning / end of line |
+| `Ctrl+W` | Delete word backward |
+| `Ctrl+U` | Delete to start of line |
+| `Option+←` / `Option+→` | Jump word backward / forward |
+| `Option+Delete` | Delete word forward (stops at `/` `.` `-`) |
+| `Option+Backspace` | Delete word backward |
+| `Option+Shift+Backspace` | Delete to start of line |
+| `Option+Enter` | Insert literal newline (multiline editing) |
+
+> Requires **Use Option as Meta Key** enabled in Terminal.app (Settings > Profiles > Keyboard). The included terminal profile has this pre-configured.
+
+### tmux (Prefix = `Ctrl+B`)
+
+These only work inside a tmux session. For the full list of default tmux keys, see [tmuxcheatsheet.com](https://tmuxcheatsheet.com).
+
+| Key | Action |
+|-----|--------|
+| `Prefix + \|` | Split pane vertically |
+| `Prefix + -` | Split pane horizontally |
+| `Prefix + h/j/k/l` | Navigate panes (left/down/up/right) |
+| `Prefix + H/J/K/L` | Resize panes by 5 (repeatable) |
+| `Prefix + c` | New window (keeps current path) |
+| `Prefix + n` / `p` | Next / previous window |
+| `Prefix + z` | Zoom/unzoom pane |
+| `Prefix + x` | Close pane |
+
+> Arrow keys are intentionally unbound in tmux to avoid conflicts with Option+Arrow word jumping in zsh.
+
+### Clipboard
+
+| Context | How to copy |
+|---------|-------------|
+| **tmux** | Mouse drag to select — automatically copied to macOS clipboard on release. Or `Prefix + [` to enter copy mode, select text, press `Enter` or `y` to copy. |
+| **Terminal.app** | Native selection with `Cmd+C` to copy (standard macOS behavior) |
 
 ## AI Coding Agents Comparison
 
