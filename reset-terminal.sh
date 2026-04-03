@@ -12,7 +12,7 @@ echo "   This will undo changes made by setup-terminal.sh"
 echo ""
 
 # --- 1. Remove config files ---
-read -p "🗑  Remove config files? (~/.zshrc, ~/.zshenv, ~/.tmux.conf, ~/.config/starship.toml) [y/N] " -n 1 -r REMOVE_CONFIGS < /dev/tty
+read -p "🗑  Reset config files? (~/.zshrc, ~/.tmux.conf, ~/.config/starship.toml; clean ~/.zshenv) [y/N] " -n 1 -r REMOVE_CONFIGS < /dev/tty
 echo ""
 if [[ $REMOVE_CONFIGS =~ ^[Yy]$ ]]; then
   rm -f ~/.tmux.conf
