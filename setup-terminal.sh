@@ -167,7 +167,12 @@ export PATH="$HOME/.local/bin:$PATH"
 # END setup-terminal.sh
 ZSHENV
   cat ~/.zshenv >> "$TMP_ZSHENV"
-  mv "$TMP_ZSHENV" ~/.zshenv
+  if [[ -L ~/.zshenv ]]; then
+    cat "$TMP_ZSHENV" > ~/.zshenv
+    rm -f "$TMP_ZSHENV"
+  else
+    mv "$TMP_ZSHENV" ~/.zshenv
+  fi
 fi
 
 # --- 9b. Write .zshrc ---
