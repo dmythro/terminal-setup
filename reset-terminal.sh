@@ -12,18 +12,23 @@ echo "   This will undo changes made by setup-terminal.sh"
 echo ""
 
 # --- 1. Remove config files ---
-read -p "🗑  Remove config files? (~/.zshrc, ~/.tmux.conf, ~/.config/starship.toml) [y/N] " -n 1 -r REMOVE_CONFIGS < /dev/tty
+read -p "🗑  Reset config files? (~/.zshrc, ~/.tmux.conf, ~/.config/starship.toml; clean ~/.zshenv) [y/N] " -n 1 -r REMOVE_CONFIGS < /dev/tty
 echo ""
 if [[ $REMOVE_CONFIGS =~ ^[Yy]$ ]]; then
   rm -f ~/.tmux.conf
   rm -f ~/.config/starship.toml
-  # Write minimal .zshrc that preserves Homebrew and local bin paths
+  # Remove setup-terminal.sh block from .zshenv (keep other content like cargo)
+  if [[ -f ~/.zshenv ]]; then
+    sed -i '' '/^# BEGIN setup-terminal\.sh$/,/^# END setup-terminal\.sh$/d' ~/.zshenv
+    # Remove empty leading lines
+    sed -i '' '/./,$!d' ~/.zshenv
+  fi
+  # Write minimal .zshrc (PATH setup is in .zshenv)
   cat > ~/.zshrc << 'ZSHRC'
-# Minimal .zshrc — preserves Homebrew and local binaries
-eval "$(/opt/homebrew/bin/brew shellenv)" 2>/dev/null || true
-export PATH="$HOME/.local/bin:$PATH"
+# Minimal .zshrc
 ZSHRC
   echo "   ✅ ~/.tmux.conf and starship.toml removed"
+  echo "   ✅ ~/.zshenv cleaned (Homebrew/local bin lines removed)"
   echo "   ✅ ~/.zshrc replaced with minimal version"
 fi
 
@@ -87,7 +92,8 @@ fi
 echo ""
 echo "✅ Reset complete."
 if [[ $REMOVE_CONFIGS =~ ^[Yy]$ ]]; then
-  echo "   ~/.zshrc replaced with minimal version (Homebrew + ~/.local/bin paths kept)"
+  echo "   ~/.zshrc replaced with minimal version"
+  echo "   ~/.zshenv cleaned (setup-terminal.sh lines removed, other content preserved)"
 fi
 echo "   Quit Terminal.app (Cmd+Q) and reopen to start fresh."
 echo ""

@@ -228,7 +228,8 @@ The reset script interactively undoes everything:
 curl -sL https://raw.githubusercontent.com/dmythro/terminal-setup/main/reset-terminal.sh | bash
 ```
 
-- Replaces `~/.zshrc` with a minimal version (keeps Homebrew and `~/.local/bin` paths)
+- Cleans `~/.zshenv` (removes Homebrew and `~/.local/bin` PATH lines added by setup)
+- Replaces `~/.zshrc` with a minimal version
 - Removes `~/.tmux.conf` and `~/.config/starship.toml`
 - Optionally resets Terminal.app profile to Basic
 - Optionally uninstalls all Homebrew packages added by the setup

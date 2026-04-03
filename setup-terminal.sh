@@ -155,7 +155,27 @@ TMUX
 [[ -n "$TMUX" ]] && tmux source-file ~/.tmux.conf 2>/dev/null || true
 fi
 
-# --- 9. Write .zshrc ---
+# --- 9a. Write .zshenv (PATH for ALL zsh invocations, incl. non-interactive) ---
+echo "📝 Updating ~/.zshenv..."
+touch ~/.zshenv
+if ! grep -Fqx '# BEGIN setup-terminal.sh' ~/.zshenv 2>/dev/null; then
+  TMP_ZSHENV="$(mktemp "${HOME}/.zshenv.tmp.XXXXXX")"
+  cat > "$TMP_ZSHENV" << 'ZSHENV'
+# BEGIN setup-terminal.sh
+[[ -x /opt/homebrew/bin/brew ]] && eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null)"
+export PATH="$HOME/.local/bin:$PATH"
+# END setup-terminal.sh
+ZSHENV
+  cat ~/.zshenv >> "$TMP_ZSHENV"
+  if [[ -L ~/.zshenv ]]; then
+    cat "$TMP_ZSHENV" > ~/.zshenv
+    rm -f "$TMP_ZSHENV"
+  else
+    mv "$TMP_ZSHENV" ~/.zshenv
+  fi
+fi
+
+# --- 9b. Write .zshrc ---
 echo "📝 Writing ~/.zshrc..."
 
 # Determine tmux toggle value
@@ -169,12 +189,6 @@ cat > ~/.zshrc << 'ZSHRC'
 # =============================================================================
 # Zsh Config
 # =============================================================================
-
-# --- Homebrew ---
-eval "$(/opt/homebrew/bin/brew shellenv)" 2>/dev/null || true
-
-# --- Local binaries (claude, etc.) ---
-export PATH="$HOME/.local/bin:$PATH"
 
 # --- tmux auto-start ---
 # Set USE_TMUX=false in ~/.zshrc to disable tmux auto-start

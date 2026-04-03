@@ -8,7 +8,7 @@ A GitHub repo ([dmythro/terminal-setup](https://github.com/dmythro/terminal-setu
 
 ## Files
 
-- `setup-terminal.sh` — Interactive setup script that installs packages and writes config files (`~/.zshrc`, `~/.tmux.conf`, `~/.config/starship.toml`)
+- `setup-terminal.sh` — Interactive setup script that installs packages and writes config files (`~/.zshenv`, `~/.zshrc`, `~/.tmux.conf`, `~/.config/starship.toml`)
 - `reset-terminal.sh` — Interactive reset script that undoes setup-terminal.sh (removes configs, optionally uninstalls packages)
 - `Dmythro.terminal` — Terminal.app profile plist (dark theme, MonaspiceNe NFM 14pt, 120x36)
 - `README.md` — User-facing documentation with feature tables, comparison chart, and quick start
@@ -20,9 +20,11 @@ The script uses `set -e` and is sequential with interactive prompts (`read -p`).
 
 `REPO_RAW` (line 9) is used to download `Dmythro.terminal` from the repo at runtime (section 11).
 
-Key sections: Homebrew install → core packages (incl. zsh-completions) → optional tmux → optional dev tools (incl. zoxide, delta) → optional AI coding agents → fzf keybindings → delta git config → tmux.conf → .zshrc → starship.toml → Terminal.app profile import → summary output.
+Key sections: Homebrew install → core packages (incl. zsh-completions) → optional tmux → optional dev tools (incl. zoxide, delta) → optional AI coding agents → fzf keybindings → delta git config → tmux.conf → .zshenv (PATH) → .zshrc (interactive config) → starship.toml → Terminal.app profile import → summary output.
 
-`reset-terminal.sh` mirrors this structure with per-section interactive prompts. It replaces `~/.zshrc` with a minimal version (preserving Homebrew/local bin paths) rather than deleting it outright. Packages are left installed by default since they're inert without configs.
+**`.zshenv` vs `.zshrc` split**: PATH setup (brew shellenv, `~/.local/bin`) lives in `~/.zshenv` because it's sourced by ALL zsh invocations including non-interactive shells (used by AI coding agents like Claude Code). Interactive-only config (completions, plugins, aliases, prompt) stays in `~/.zshrc`. The `.zshenv` block is bracketed with `# BEGIN/END setup-terminal.sh` markers for idempotent writes and precise cleanup.
+
+`reset-terminal.sh` mirrors this structure with per-section interactive prompts. It cleans setup-terminal.sh lines from `~/.zshenv` (preserving other content like cargo) and replaces `~/.zshrc` with a minimal version. Packages are left installed by default since they're inert without configs.
 
 ## Conventions
 
