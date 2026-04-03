@@ -17,11 +17,9 @@ echo ""
 if [[ $REMOVE_CONFIGS =~ ^[Yy]$ ]]; then
   rm -f ~/.tmux.conf
   rm -f ~/.config/starship.toml
-  # Remove setup-terminal.sh lines from .zshenv (keep other content like cargo)
+  # Remove setup-terminal.sh block from .zshenv (keep other content like cargo)
   if [[ -f ~/.zshenv ]]; then
-    sed -i '' '/# --- Homebrew + local binaries (must be in .zshenv/d' ~/.zshenv
-    sed -i '' '/brew shellenv/d' ~/.zshenv
-    sed -i '' '/export PATH="\$HOME\/.local\/bin:\$PATH"/d' ~/.zshenv
+    sed -i '' '/^# BEGIN setup-terminal\.sh$/,/^# END setup-terminal\.sh$/d' ~/.zshenv
     # Remove empty leading lines
     sed -i '' '/./,$!d' ~/.zshenv
   fi

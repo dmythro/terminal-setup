@@ -22,7 +22,7 @@ The script uses `set -e` and is sequential with interactive prompts (`read -p`).
 
 Key sections: Homebrew install → core packages (incl. zsh-completions) → optional tmux → optional dev tools (incl. zoxide, delta) → optional AI coding agents → fzf keybindings → delta git config → tmux.conf → .zshenv (PATH) → .zshrc (interactive config) → starship.toml → Terminal.app profile import → summary output.
 
-**`.zshenv` vs `.zshrc` split**: PATH setup (brew shellenv, `~/.local/bin`) lives in `~/.zshenv` because it's sourced by ALL zsh invocations including non-interactive shells (used by AI coding agents like Claude Code). Interactive-only config (completions, plugins, aliases, prompt) stays in `~/.zshrc`. The `.zshenv` write is idempotent — it checks for existing content before adding.
+**`.zshenv` vs `.zshrc` split**: PATH setup (brew shellenv, `~/.local/bin`) lives in `~/.zshenv` because it's sourced by ALL zsh invocations including non-interactive shells (used by AI coding agents like Claude Code). Interactive-only config (completions, plugins, aliases, prompt) stays in `~/.zshrc`. The `.zshenv` block is bracketed with `# BEGIN/END setup-terminal.sh` markers for idempotent writes and precise cleanup.
 
 `reset-terminal.sh` mirrors this structure with per-section interactive prompts. It cleans setup-terminal.sh lines from `~/.zshenv` (preserving other content like cargo) and replaces `~/.zshrc` with a minimal version. Packages are left installed by default since they're inert without configs.
 

@@ -158,14 +158,16 @@ fi
 # --- 9a. Write .zshenv (PATH for ALL zsh invocations, incl. non-interactive) ---
 echo "📝 Updating ~/.zshenv..."
 touch ~/.zshenv
-if ! grep -q 'brew shellenv' ~/.zshenv 2>/dev/null; then
-  EXISTING=$(cat ~/.zshenv)
-  cat > ~/.zshenv << 'ZSHENV'
-# --- Homebrew + local binaries (must be in .zshenv for non-interactive shells) ---
-eval "$(/opt/homebrew/bin/brew shellenv)" 2>/dev/null || true
+if ! grep -Fqx '# BEGIN setup-terminal.sh' ~/.zshenv 2>/dev/null; then
+  TMP_ZSHENV="$(mktemp "${HOME}/.zshenv.tmp.XXXXXX")"
+  cat > "$TMP_ZSHENV" << 'ZSHENV'
+# BEGIN setup-terminal.sh
+[[ -x /opt/homebrew/bin/brew ]] && eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null)"
 export PATH="$HOME/.local/bin:$PATH"
+# END setup-terminal.sh
 ZSHENV
-  echo "$EXISTING" >> ~/.zshenv
+  cat ~/.zshenv >> "$TMP_ZSHENV"
+  mv "$TMP_ZSHENV" ~/.zshenv
 fi
 
 # --- 9b. Write .zshrc ---
