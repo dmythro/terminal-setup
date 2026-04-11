@@ -34,7 +34,11 @@ echo "🚀 Setting up terminal..."
 if ! command -v brew &>/dev/null; then
   echo "📦 Installing Homebrew..."
   NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-  eval "$(/opt/homebrew/bin/brew shellenv)"
+  if [[ -x /opt/homebrew/bin/brew ]]; then
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+  elif [[ -x /usr/local/bin/brew ]]; then
+    eval "$(/usr/local/bin/brew shellenv)"
+  fi
 fi
 
 # --- 2. Core packages ---
@@ -378,7 +382,7 @@ else
 fi
 if [[ $INSTALL_PROFILE =~ ^[Yy]$ ]]; then
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  if [[ -f "${BASH_SOURCE[0]}" ]] && [[ -f "${SCRIPT_DIR}/Dmythro.terminal" ]]; then
+  if [[ "${BASH_SOURCE[0]}" == /* ]] && [[ -f "${SCRIPT_DIR}/Dmythro.terminal" ]]; then
     cp "${SCRIPT_DIR}/Dmythro.terminal" /tmp/Dmythro.terminal
   else
     curl -fsSL "${REPO_RAW}/Dmythro.terminal" -o /tmp/Dmythro.terminal
