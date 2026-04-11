@@ -375,7 +375,12 @@ else
   echo ""
 fi
 if [[ $INSTALL_PROFILE =~ ^[Yy]$ ]]; then
-  curl -sL "${REPO_RAW}/Dmythro.terminal" -o /tmp/Dmythro.terminal
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  if [[ -f "${SCRIPT_DIR}/Dmythro.terminal" ]]; then
+    cp "${SCRIPT_DIR}/Dmythro.terminal" /tmp/Dmythro.terminal
+  else
+    curl -sL "${REPO_RAW}/Dmythro.terminal" -o /tmp/Dmythro.terminal
+  fi
   open /tmp/Dmythro.terminal
 
   # Wait for Terminal.app to import the profile (up to 5 seconds)
