@@ -2,18 +2,43 @@
 # =============================================================================
 # macOS Terminal Reset
 # Undoes setup-terminal.sh — removes configs and optionally uninstalls packages
-# Run: curl -sL https://raw.githubusercontent.com/dmythro/terminal-setup/main/reset-terminal.sh | bash
+# Run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/dmythro/terminal-setup/main/reset-terminal.sh)"
 # =============================================================================
 
 set -e
+
+# --- Parse flags ---
+YES_MODE=false
+for arg in "$@"; do
+  case "$arg" in
+    -y|--yes) YES_MODE=true ;;
+  esac
+done
+
+# --- TTY detection ---
+if [[ "$YES_MODE" != "true" ]]; then
+  if ! [[ -t 0 ]] && ! : 2>/dev/null </dev/tty; then
+    echo "❌ No interactive terminal detected."
+    echo "   Run from an interactive terminal:"
+    echo '   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/dmythro/terminal-setup/main/reset-terminal.sh)"'
+    echo "   Or run non-interactively with -y:"
+    echo '   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/dmythro/terminal-setup/main/reset-terminal.sh)" -- -y'
+    exit 1
+  fi
+fi
 
 echo "🧹 Terminal setup reset"
 echo "   This will undo changes made by setup-terminal.sh"
 echo ""
 
 # --- 1. Remove config files ---
-read -p "🗑  Reset config files? (~/.zshrc, ~/.tmux.conf, ~/.config/starship.toml; clean ~/.zshenv) [y/N] " -n 1 -r REMOVE_CONFIGS < /dev/tty
-echo ""
+if [[ "$YES_MODE" == "true" ]]; then
+  REMOVE_CONFIGS=y
+  echo "🗑  Resetting config files (auto-yes)..."
+else
+  read -p "🗑  Reset config files? (~/.zshrc, ~/.tmux.conf, ~/.config/starship.toml; clean ~/.zshenv) [y/N] " -n 1 -r REMOVE_CONFIGS < /dev/tty
+  echo ""
+fi
 if [[ $REMOVE_CONFIGS =~ ^[Yy]$ ]]; then
   rm -f ~/.tmux.conf
   rm -f ~/.config/starship.toml
@@ -34,8 +59,13 @@ fi
 
 # --- 2. Remove fzf key bindings ---
 if [[ -f ~/.fzf.zsh ]] || [[ -f ~/.fzf.bash ]]; then
-  read -p "🗑  Remove fzf key bindings? (~/.fzf.zsh, ~/.fzf.bash) [y/N] " -n 1 -r REMOVE_FZF < /dev/tty
-  echo ""
+  if [[ "$YES_MODE" == "true" ]]; then
+    REMOVE_FZF=y
+    echo "🗑  Removing fzf key bindings (auto-yes)..."
+  else
+    read -p "🗑  Remove fzf key bindings? (~/.fzf.zsh, ~/.fzf.bash) [y/N] " -n 1 -r REMOVE_FZF < /dev/tty
+    echo ""
+  fi
   if [[ $REMOVE_FZF =~ ^[Yy]$ ]]; then
     rm -f ~/.fzf.zsh ~/.fzf.bash
     echo "   ✅ fzf key bindings removed"
@@ -45,8 +75,13 @@ fi
 # --- 3. Reset Terminal.app profile ---
 CURRENT_PROFILE=$(defaults read com.apple.Terminal "Default Window Settings" 2>/dev/null || true)
 if [[ "$CURRENT_PROFILE" == "Dmythro" ]]; then
-  read -p "🎨 Reset Terminal.app profile to Basic? [y/N] " -n 1 -r RESET_PROFILE < /dev/tty
-  echo ""
+  if [[ "$YES_MODE" == "true" ]]; then
+    RESET_PROFILE=y
+    echo "🎨 Resetting Terminal.app profile to Basic (auto-yes)..."
+  else
+    read -p "🎨 Reset Terminal.app profile to Basic? [y/N] " -n 1 -r RESET_PROFILE < /dev/tty
+    echo ""
+  fi
   if [[ $RESET_PROFILE =~ ^[Yy]$ ]]; then
     defaults write com.apple.Terminal "Default Window Settings" -string "Basic"
     defaults write com.apple.Terminal "Startup Window Settings" -string "Basic"
@@ -56,8 +91,13 @@ fi
 
 # --- 4. Kill tmux if running ---
 if command -v tmux &>/dev/null && tmux list-sessions &>/dev/null 2>&1; then
-  read -p "🔌 Kill running tmux sessions? [y/N] " -n 1 -r KILL_TMUX < /dev/tty
-  echo ""
+  if [[ "$YES_MODE" == "true" ]]; then
+    KILL_TMUX=y
+    echo "🔌 Killing tmux sessions (auto-yes)..."
+  else
+    read -p "🔌 Kill running tmux sessions? [y/N] " -n 1 -r KILL_TMUX < /dev/tty
+    echo ""
+  fi
   if [[ $KILL_TMUX =~ ^[Yy]$ ]]; then
     tmux kill-server 2>/dev/null || true
     echo "   ✅ tmux sessions killed"
@@ -67,8 +107,12 @@ fi
 # --- 5. Uninstall Homebrew packages ---
 if command -v brew &>/dev/null; then
   echo ""
-  read -p "📦 Uninstall packages installed by setup-terminal.sh? [y/N] " -n 1 -r UNINSTALL_PKGS < /dev/tty
-  echo ""
+  if [[ "$YES_MODE" == "true" ]]; then
+    UNINSTALL_PKGS=n
+  else
+    read -p "📦 Uninstall packages installed by setup-terminal.sh? [y/N] " -n 1 -r UNINSTALL_PKGS < /dev/tty
+    echo ""
+  fi
   if [[ $UNINSTALL_PKGS =~ ^[Yy]$ ]]; then
     PKGS=(fzf zsh-autosuggestions zsh-syntax-highlighting zsh-completions starship tmux gh bun ripgrep fd zoxide git-delta aider gemini-cli opencode)
     CASKS=(claude-code codex font-monaspice-nerd-font)

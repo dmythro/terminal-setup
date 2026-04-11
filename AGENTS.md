@@ -4,7 +4,7 @@ This file provides guidance to AI coding agents working on this repository.
 
 ## What This Is
 
-A GitHub repo ([dmythro/terminal-setup](https://github.com/dmythro/terminal-setup)) containing a one-command macOS terminal setup script. Designed to be run via `curl | bash` on a fresh Mac.
+A GitHub repo ([dmythro/terminal-setup](https://github.com/dmythro/terminal-setup)) containing a one-command macOS terminal setup script. Designed to be run via `/bin/bash -c "$(curl ...)"` on a fresh Mac (same pattern as Homebrew — downloads first, then executes with stdin connected to the terminal). Supports `-y`/`--yes` for non-interactive mode.
 
 ## Files
 
