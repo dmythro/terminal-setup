@@ -1,12 +1,30 @@
 #!/bin/bash
 # =============================================================================
 # macOS Terminal Setup
-# Run: curl -sL https://raw.githubusercontent.com/dmythro/terminal-setup/main/setup-terminal.sh | bash
+# Run: /bin/bash -c "$(curl -sL https://raw.githubusercontent.com/dmythro/terminal-setup/main/setup-terminal.sh)"
 # =============================================================================
 
 set -e
 
 REPO_RAW="https://raw.githubusercontent.com/dmythro/terminal-setup/main"
+
+# --- Parse flags ---
+YES_MODE=false
+for arg in "$@"; do
+  case "$arg" in
+    -y|--yes) YES_MODE=true ;;
+  esac
+done
+
+# --- TTY detection ---
+if [[ "$YES_MODE" != "true" ]]; then
+  if ! [[ -t 0 ]] && ! [[ -c /dev/tty ]]; then
+    echo "❌ No interactive terminal detected."
+    echo "   Run with -y to install core + dev tools without prompts, or use:"
+    echo '   /bin/bash -c "$(curl -sL https://raw.githubusercontent.com/dmythro/terminal-setup/main/setup-terminal.sh)"'
+    exit 1
+  fi
+fi
 
 echo "🚀 Setting up terminal..."
 
@@ -24,8 +42,12 @@ chmod go-w "$(brew --prefix)/share/zsh-completions" "$(brew --prefix)/share"
 
 # --- 3. Optional tmux ---
 echo ""
-read -p "📦 Install tmux for split panes? (auto-starts per session) [y/N] " -n 1 -r INSTALL_TMUX < /dev/tty
-echo ""
+if [[ "$YES_MODE" == "true" ]]; then
+  INSTALL_TMUX=n
+else
+  read -p "📦 Install tmux for split panes? (auto-starts per session) [y/N] " -n 1 -r INSTALL_TMUX < /dev/tty
+  echo ""
+fi
 if [[ $INSTALL_TMUX =~ ^[Yy]$ ]]; then
   brew install tmux
   echo "   ✅ tmux installed"
@@ -33,8 +55,13 @@ fi
 
 # --- 4. Optional dev tools ---
 echo ""
-read -p "📦 Install dev tools? (gh, bun, ripgrep, fd, zoxide, delta) [y/N] " -n 1 -r INSTALL_DEV < /dev/tty
-echo ""
+if [[ "$YES_MODE" == "true" ]]; then
+  INSTALL_DEV=y
+  echo "📦 Installing dev tools (auto-yes)..."
+else
+  read -p "📦 Install dev tools? (gh, bun, ripgrep, fd, zoxide, delta) [y/N] " -n 1 -r INSTALL_DEV < /dev/tty
+  echo ""
+fi
 if [[ $INSTALL_DEV =~ ^[Yy]$ ]]; then
   brew install gh bun ripgrep fd zoxide git-delta
   echo "   ✅ Dev tools installed"
@@ -328,8 +355,12 @@ STARSHIP
 
 # --- 11. Optional Nerd Font ---
 echo ""
-read -p "🔤 Install Monaspace Nerd Font? (icons for Starship + dev tools) [y/N] " -n 1 -r INSTALL_FONT < /dev/tty
-echo ""
+if [[ "$YES_MODE" == "true" ]]; then
+  INSTALL_FONT=n
+else
+  read -p "🔤 Install Monaspace Nerd Font? (icons for Starship + dev tools) [y/N] " -n 1 -r INSTALL_FONT < /dev/tty
+  echo ""
+fi
 if [[ $INSTALL_FONT =~ ^[Yy]$ ]]; then
   brew install --cask font-monaspice-nerd-font
   echo "   ✅ Monaspace Nerd Font installed"
@@ -337,15 +368,35 @@ fi
 
 # --- 12. Terminal.app profile (optional) ---
 echo ""
-read -p "🎨 Import Dmythro Terminal.app profile? (dark theme, MonaspiceNe NFM 14pt) [y/N] " -n 1 -r INSTALL_PROFILE < /dev/tty
-echo ""
+if [[ "$YES_MODE" == "true" ]]; then
+  INSTALL_PROFILE=n
+else
+  read -p "🎨 Import Dmythro Terminal.app profile? (dark theme, MonaspiceNe NFM 14pt) [y/N] " -n 1 -r INSTALL_PROFILE < /dev/tty
+  echo ""
+fi
 if [[ $INSTALL_PROFILE =~ ^[Yy]$ ]]; then
   curl -sL "${REPO_RAW}/Dmythro.terminal" -o /tmp/Dmythro.terminal
   open /tmp/Dmythro.terminal
-  sleep 1
-  defaults write com.apple.Terminal "Default Window Settings" -string "Dmythro"
-  defaults write com.apple.Terminal "Startup Window Settings" -string "Dmythro"
-  echo "   ✅ Profile imported and set as default"
+
+  # Wait for Terminal.app to import the profile (up to 5 seconds)
+  PROFILE_IMPORTED=false
+  for i in {1..10}; do
+    if defaults read com.apple.Terminal "Window Settings" 2>/dev/null | grep -q '"Dmythro"'; then
+      PROFILE_IMPORTED=true
+      break
+    fi
+    sleep 0.5
+  done
+
+  if [[ "$PROFILE_IMPORTED" == "true" ]]; then
+    defaults write com.apple.Terminal "Default Window Settings" -string "Dmythro"
+    defaults write com.apple.Terminal "Startup Window Settings" -string "Dmythro"
+    echo "   ✅ Profile imported and set as default"
+  else
+    defaults write com.apple.Terminal "Default Window Settings" -string "Dmythro"
+    defaults write com.apple.Terminal "Startup Window Settings" -string "Dmythro"
+    echo "   ✅ Profile set as default (restart Terminal.app to apply)"
+  fi
 fi
 
 # --- 13. Done ---
@@ -408,4 +459,4 @@ echo "      brew install gemini-cli         # Google (open source)"
 echo "      brew install aider              # multi-model pair programming"
 echo ""
 echo "💡 To use on another Mac, run:"
-echo "   curl -sL https://raw.githubusercontent.com/dmythro/terminal-setup/main/setup-terminal.sh | bash"
+echo '   /bin/bash -c "$(curl -sL https://raw.githubusercontent.com/dmythro/terminal-setup/main/setup-terminal.sh)"'
