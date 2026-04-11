@@ -20,8 +20,10 @@ done
 if [[ "$YES_MODE" != "true" ]]; then
   if ! [[ -t 0 ]] && ! : 2>/dev/null </dev/tty; then
     echo "❌ No interactive terminal detected."
-    echo "   Run with -y to install core + dev tools without prompts, or use:"
+    echo "   Run from an interactive terminal:"
     echo '   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/dmythro/terminal-setup/main/setup-terminal.sh)"'
+    echo "   Or run non-interactively with -y:"
+    echo '   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/dmythro/terminal-setup/main/setup-terminal.sh)" -- -y'
     exit 1
   fi
 fi
@@ -31,7 +33,7 @@ echo "🚀 Setting up terminal..."
 # --- 1. Install Homebrew if missing ---
 if ! command -v brew &>/dev/null; then
   echo "📦 Installing Homebrew..."
-  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
   eval "$(/opt/homebrew/bin/brew shellenv)"
 fi
 
@@ -376,7 +378,7 @@ else
 fi
 if [[ $INSTALL_PROFILE =~ ^[Yy]$ ]]; then
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  if [[ -f "${SCRIPT_DIR}/Dmythro.terminal" ]]; then
+  if [[ -f "${BASH_SOURCE[0]}" ]] && [[ -f "${SCRIPT_DIR}/Dmythro.terminal" ]]; then
     cp "${SCRIPT_DIR}/Dmythro.terminal" /tmp/Dmythro.terminal
   else
     curl -fsSL "${REPO_RAW}/Dmythro.terminal" -o /tmp/Dmythro.terminal

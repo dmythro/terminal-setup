@@ -19,8 +19,10 @@ done
 if [[ "$YES_MODE" != "true" ]]; then
   if ! [[ -t 0 ]] && ! : 2>/dev/null </dev/tty; then
     echo "❌ No interactive terminal detected."
-    echo "   Run with -y to reset without prompts, or use:"
+    echo "   Run from an interactive terminal:"
     echo '   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/dmythro/terminal-setup/main/reset-terminal.sh)"'
+    echo "   Or run non-interactively with -y:"
+    echo '   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/dmythro/terminal-setup/main/reset-terminal.sh)" -- -y'
     exit 1
   fi
 fi
