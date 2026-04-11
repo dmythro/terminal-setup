@@ -2,7 +2,7 @@
 # =============================================================================
 # macOS Terminal Reset
 # Undoes setup-terminal.sh — removes configs and optionally uninstalls packages
-# Run: /bin/bash -c "$(curl -sL https://raw.githubusercontent.com/dmythro/terminal-setup/main/reset-terminal.sh)"
+# Run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/dmythro/terminal-setup/main/reset-terminal.sh)"
 # =============================================================================
 
 set -e
@@ -17,10 +17,10 @@ done
 
 # --- TTY detection ---
 if [[ "$YES_MODE" != "true" ]]; then
-  if ! [[ -t 0 ]] && ! [[ -c /dev/tty ]]; then
+  if ! [[ -t 0 ]] && ! : 2>/dev/null </dev/tty; then
     echo "❌ No interactive terminal detected."
     echo "   Run with -y to reset without prompts, or use:"
-    echo '   /bin/bash -c "$(curl -sL https://raw.githubusercontent.com/dmythro/terminal-setup/main/reset-terminal.sh)"'
+    echo '   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/dmythro/terminal-setup/main/reset-terminal.sh)"'
     exit 1
   fi
 fi

@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # macOS Terminal Setup
-# Run: /bin/bash -c "$(curl -sL https://raw.githubusercontent.com/dmythro/terminal-setup/main/setup-terminal.sh)"
+# Run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/dmythro/terminal-setup/main/setup-terminal.sh)"
 # =============================================================================
 
 set -e
@@ -18,10 +18,10 @@ done
 
 # --- TTY detection ---
 if [[ "$YES_MODE" != "true" ]]; then
-  if ! [[ -t 0 ]] && ! [[ -c /dev/tty ]]; then
+  if ! [[ -t 0 ]] && ! : 2>/dev/null </dev/tty; then
     echo "❌ No interactive terminal detected."
     echo "   Run with -y to install core + dev tools without prompts, or use:"
-    echo '   /bin/bash -c "$(curl -sL https://raw.githubusercontent.com/dmythro/terminal-setup/main/setup-terminal.sh)"'
+    echo '   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/dmythro/terminal-setup/main/setup-terminal.sh)"'
     exit 1
   fi
 fi
@@ -379,14 +379,14 @@ if [[ $INSTALL_PROFILE =~ ^[Yy]$ ]]; then
   if [[ -f "${SCRIPT_DIR}/Dmythro.terminal" ]]; then
     cp "${SCRIPT_DIR}/Dmythro.terminal" /tmp/Dmythro.terminal
   else
-    curl -sL "${REPO_RAW}/Dmythro.terminal" -o /tmp/Dmythro.terminal
+    curl -fsSL "${REPO_RAW}/Dmythro.terminal" -o /tmp/Dmythro.terminal
   fi
   open /tmp/Dmythro.terminal
 
   # Wait for Terminal.app to import the profile (up to 5 seconds)
   PROFILE_IMPORTED=false
   for i in {1..10}; do
-    if defaults read com.apple.Terminal "Window Settings" 2>/dev/null | grep -q '"Dmythro"'; then
+    if defaults read com.apple.Terminal "Window Settings" 2>/dev/null | grep -q 'Dmythro'; then
       PROFILE_IMPORTED=true
       break
     fi
@@ -398,9 +398,8 @@ if [[ $INSTALL_PROFILE =~ ^[Yy]$ ]]; then
     defaults write com.apple.Terminal "Startup Window Settings" -string "Dmythro"
     echo "   ✅ Profile imported and set as default"
   else
-    defaults write com.apple.Terminal "Default Window Settings" -string "Dmythro"
-    defaults write com.apple.Terminal "Startup Window Settings" -string "Dmythro"
-    echo "   ✅ Profile set as default (restart Terminal.app to apply)"
+    echo "   ⚠️  Profile import timed out. Open /tmp/Dmythro.terminal manually,"
+    echo "      then set it as default in Terminal → Settings → Profiles."
   fi
 fi
 
@@ -464,4 +463,4 @@ echo "      brew install gemini-cli         # Google (open source)"
 echo "      brew install aider              # multi-model pair programming"
 echo ""
 echo "💡 To use on another Mac, run:"
-echo '   /bin/bash -c "$(curl -sL https://raw.githubusercontent.com/dmythro/terminal-setup/main/setup-terminal.sh)"'
+echo '   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/dmythro/terminal-setup/main/setup-terminal.sh)"'

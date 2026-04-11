@@ -7,19 +7,19 @@ While it includes an optional Terminal.app dark theme profile, the shell configu
 ## Quick Start
 
 ```bash
-/bin/bash -c "$(curl -sL https://raw.githubusercontent.com/dmythro/terminal-setup/main/setup-terminal.sh)"
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/dmythro/terminal-setup/main/setup-terminal.sh)"
 ```
 
 To undo everything:
 
 ```bash
-/bin/bash -c "$(curl -sL https://raw.githubusercontent.com/dmythro/terminal-setup/main/reset-terminal.sh)"
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/dmythro/terminal-setup/main/reset-terminal.sh)"
 ```
 
 ### Non-interactive mode
 
 ```bash
-/bin/bash -c "$(curl -sL https://raw.githubusercontent.com/dmythro/terminal-setup/main/setup-terminal.sh)" -- -y
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/dmythro/terminal-setup/main/setup-terminal.sh)" -- -y
 ```
 
 Installs core packages and dev tools without prompts. Skips tmux, Nerd Font, and Terminal.app profile (these change shell behavior or are visual preferences — choose them interactively).
@@ -27,7 +27,7 @@ Installs core packages and dev tools without prompts. Skips tmux, Nerd Font, and
 To reset non-interactively:
 
 ```bash
-/bin/bash -c "$(curl -sL https://raw.githubusercontent.com/dmythro/terminal-setup/main/reset-terminal.sh)" -- -y
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/dmythro/terminal-setup/main/reset-terminal.sh)" -- -y
 ```
 
 Removes configs, resets Terminal.app profile, and kills tmux sessions without prompts. Skips package uninstall (packages are inert without configs).
@@ -241,7 +241,7 @@ The zsh configuration is optimized for working with AI coding agents:
 The reset script interactively undoes everything:
 
 ```bash
-/bin/bash -c "$(curl -sL https://raw.githubusercontent.com/dmythro/terminal-setup/main/reset-terminal.sh)"
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/dmythro/terminal-setup/main/reset-terminal.sh)"
 ```
 
 - Cleans `~/.zshenv` (removes Homebrew and `~/.local/bin` PATH lines added by setup)
