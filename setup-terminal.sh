@@ -1,8 +1,8 @@
 #!/bin/bash
-# =============================================================================
-# macOS Terminal Setup
-# Run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/dmythro/terminal-setup/main/setup-terminal.sh)"
-# =============================================================================
+# ============================================================
+# terminal-setup — macOS terminal setup
+# https://github.com/dmythro/terminal-setup
+# ============================================================
 
 set -e
 
@@ -28,7 +28,16 @@ if [[ "$YES_MODE" != "true" ]]; then
   fi
 fi
 
-echo "🚀 Setting up terminal..."
+# --- Welcome banner ---
+echo "terminal-setup — macOS terminal setup"
+echo "https://github.com/dmythro/terminal-setup"
+echo
+
+if [[ "$YES_MODE" != "true" ]]; then
+  read -p "Do you want to continue? [Y/n] " -n 1 -r reply < /dev/tty
+  echo
+  [[ "$reply" =~ ^[Nn]$ ]] && exit 0
+fi
 
 # --- 1. Install Homebrew if missing ---
 if ! command -v brew &>/dev/null; then
