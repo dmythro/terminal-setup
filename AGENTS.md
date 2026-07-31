@@ -106,6 +106,8 @@ herdr specifics:
 
 The profile also sets `noWarnProcesses` to `screen`, `tmux`, `herdr` — without it, quitting Terminal.app with a multiplexer running always shows the "terminate running processes?" dialog. Apple's built-in default list covers `screen`/`tmux` but not `herdr`, and **setting the key replaces the default list entirely**, so `screen` and `tmux` must stay listed alongside `herdr`.
 
+**Profile import overwrites via AppleScript, not `defaults write`.** Terminal.app never replaces an existing profile on import — a re-run's import lands as "Dmythro 1", "Dmythro 2", … while the default keeps pointing at the stale original. Section 12 therefore deletes existing `Dmythro`/`Dmythro N` settings sets over AppleScript before importing, and sets default/startup settings the same way. AppleScript edits Terminal's in-memory model, which Terminal persists itself; `defaults write com.apple.Terminal` from a shell inside Terminal.app is silently clobbered when the app quits and flushes its cached prefs. Don't "simplify" the osascript calls back to `defaults`.
+
 ## macOS 26 Support
 
 The .zshrc detects macOS 26+ via `sw_vers -productVersion` and sets `COLORTERM=truecolor`. The tmux config uses `tmux-256color` with true color overrides (`Tc`). This enables full 24-bit color in Terminal.app on Tahoe. herdr needs nothing here — it renders through the host terminal and inherits its color support.

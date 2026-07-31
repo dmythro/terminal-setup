@@ -701,12 +701,27 @@ if [[ $INSTALL_PROFILE =~ ^[Yy]$ ]]; then
   else
     curl -fsSL "${REPO_RAW}/Dmythro.terminal" -o /tmp/Dmythro.terminal
   fi
+  # Overwrite, don't accumulate: Terminal.app never replaces an existing
+  # profile on import — a re-run's import lands as "Dmythro 1", "Dmythro 2", …
+  # while the default keeps pointing at the stale original. Delete previous
+  # copies first so the import gets the clean name. All profile surgery goes
+  # through AppleScript, which edits Terminal's *in-memory* settings; a
+  # `defaults write` would be silently clobbered when Terminal.app quits and
+  # flushes its cached prefs back to disk.
+  osascript -e '
+    tell application "Terminal"
+      repeat with s in (get settings sets)
+        set n to name of s
+        if n is "Dmythro" or n starts with "Dmythro " then delete s
+      end repeat
+    end tell' &>/dev/null || true
+
   open /tmp/Dmythro.terminal
 
   # Wait for Terminal.app to import the profile (up to 5 seconds)
   PROFILE_IMPORTED=false
   for i in {1..10}; do
-    if defaults read com.apple.Terminal "Window Settings" 2>/dev/null | grep -q 'Dmythro'; then
+    if [[ "$(osascript -e 'tell application "Terminal" to exists settings set "Dmythro"' 2>/dev/null)" == "true" ]]; then
       PROFILE_IMPORTED=true
       break
     fi
@@ -714,9 +729,12 @@ if [[ $INSTALL_PROFILE =~ ^[Yy]$ ]]; then
   done
 
   if [[ "$PROFILE_IMPORTED" == "true" ]]; then
-    defaults write com.apple.Terminal "Default Window Settings" -string "Dmythro"
-    defaults write com.apple.Terminal "Startup Window Settings" -string "Dmythro"
-    echo "   ✅ Profile imported and set as default"
+    osascript -e '
+      tell application "Terminal"
+        set default settings to settings set "Dmythro"
+        set startup settings to settings set "Dmythro"
+      end tell' &>/dev/null || true
+    echo "   ✅ Profile imported and set as default (previous copies replaced)"
   else
     echo "   ⚠️  Profile import timed out. Open /tmp/Dmythro.terminal manually,"
     echo "      then set it as default in Terminal → Settings → Profiles."
