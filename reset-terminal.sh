@@ -36,24 +36,59 @@ if [[ "$YES_MODE" == "true" ]]; then
   REMOVE_CONFIGS=y
   echo "🗑  Resetting config files (auto-yes)..."
 else
-  read -p "🗑  Reset config files? (~/.zshrc, ~/.tmux.conf, ~/.config/starship.toml; clean ~/.zshenv) [y/N] " -n 1 -r REMOVE_CONFIGS < /dev/tty
+  read -p "🗑  Reset config files — no backup? Replaces ~/.zshrc, deletes ~/.tmux.conf + herdr/starship configs, cleans ~/.zshenv and ~/.zprofile [y/N] " -n 1 -r REMOVE_CONFIGS < /dev/tty
   echo ""
 fi
 if [[ $REMOVE_CONFIGS =~ ^[Yy]$ ]]; then
-  rm -f ~/.tmux.conf
-  rm -f ~/.config/starship.toml
-  # Remove setup-terminal.sh block from .zshenv (keep other content like cargo)
-  if [[ -f ~/.zshenv ]]; then
-    sed -i '' '/^# BEGIN setup-terminal\.sh$/,/^# END setup-terminal\.sh$/d' ~/.zshenv
-    # Remove empty leading lines
-    sed -i '' '/./,$!d' ~/.zshenv
-  fi
+  # Never delete a symlinked dotfile (chezmoi, stow): empty it through the
+  # link instead, matching the .zshenv/.zprofile handling below. An empty
+  # managed file is fine; a missing one breaks the link the manager owns.
+  for f in ~/.tmux.conf ~/.config/starship.toml ~/.config/herdr/config.toml; do
+    if [[ -L "$f" ]]; then
+      : > "$f"
+      echo "   ⏭  $f is a symlink — emptied instead of deleted"
+    else
+      rm -f "$f"
+    fi
+  done
+  rmdir ~/.config/herdr 2>/dev/null || true
+  # Remove the setup-terminal.sh block from .zshenv/.zprofile, keeping other
+  # content (cargo, rustup, OrbStack, ...) exactly as-is.
+  #
+  # Deliberately not `sed '/BEGIN/,/END/d'`: a sed range with no closing match
+  # deletes to end of file, so a hand-edited or truncated dotfile that kept the
+  # BEGIN marker but lost the END would lose everything after it. awk buffers
+  # the block and puts it back untouched when no END turns up.
+  for f in ~/.zshenv ~/.zprofile; do
+    [[ -f "$f" ]] || continue
+    tmp="$(mktemp "${f}.tmp.XXXXXX")"
+    awk '
+      /^# BEGIN setup-terminal\.sh$/ && !inblk { inblk = 1; buf = $0 ORS; next }
+      inblk && /^# END setup-terminal\.sh$/    { inblk = 0; buf = ""; next }
+      inblk                                    { buf = buf $0 ORS; next }
+                                               { print }
+      END { if (inblk) printf "%s", buf }
+    ' "$f" > "$tmp"
+    # Write back without clobbering a symlinked dotfile (chezmoi, stow)
+    if [[ -L "$f" ]]; then
+      cat "$tmp" > "$f"
+      rm -f "$tmp"
+    else
+      mv "$tmp" "$f"
+    fi
+    # Drop the file only if nothing but whitespace is left — and never delete a
+    # symlink, which would break the dotfile manager that put it there. An empty
+    # managed file is fine; a missing one means chezmoi/stow has to re-link it.
+    if [[ ! -L "$f" ]] && [[ -z "$(tr -d '[:space:]' < "$f")" ]]; then
+      rm -f "$f"
+    fi
+  done
   # Write minimal .zshrc (PATH setup is in .zshenv)
   cat > ~/.zshrc << 'ZSHRC'
 # Minimal .zshrc
 ZSHRC
-  echo "   ✅ ~/.tmux.conf and starship.toml removed"
-  echo "   ✅ ~/.zshenv cleaned (Homebrew/local bin lines removed)"
+  echo "   ✅ ~/.tmux.conf, starship.toml and herdr config removed"
+  echo "   ✅ ~/.zshenv and ~/.zprofile cleaned (Homebrew/local bin lines removed)"
   echo "   ✅ ~/.zshrc replaced with minimal version"
 fi
 
@@ -104,6 +139,53 @@ if command -v tmux &>/dev/null && tmux list-sessions &>/dev/null 2>&1; then
   fi
 fi
 
+# --- 4b. Stop herdr server + remove agent hooks ---
+if command -v herdr &>/dev/null; then
+  if [[ "$YES_MODE" == "true" ]]; then
+    STOP_HERDR=y
+    echo "🔌 Stopping herdr server and removing agent hooks (auto-yes)..."
+  else
+    read -p "🔌 Stop herdr server and remove its agent hooks? [y/N] " -n 1 -r STOP_HERDR < /dev/tty
+    echo ""
+  fi
+  if [[ $STOP_HERDR =~ ^[Yy]$ ]]; then
+    herdr server stop &>/dev/null || true
+    echo "   ✅ herdr server stopped"
+    # Only remove the Claude hook if setup-terminal.sh is the one that installed
+    # it. The hook is always named herdr-agent-state.sh, so there is no way to
+    # tell ours from one the user installed by hand — without this marker check,
+    # `reset -y` would silently delete theirs. Other agents' hooks are never
+    # touched: setup only ever installs `claude`.
+    # The hook lives outside herdr's own config (~/.claude/hooks plus entries in
+    # ~/.claude/settings.json), so removal has to go through herdr itself.
+    if [[ -f ~/.local/state/setup-terminal/herdr-claude-hook ]]; then
+      # Drop the marker only when the uninstall actually succeeded — removing
+      # it on failure would leave the hook installed while a re-run reports
+      # "not installed by this setup" and never touches it again.
+      if herdr integration uninstall claude &>/dev/null; then
+        rm -f ~/.local/state/setup-terminal/herdr-claude-hook
+        rmdir ~/.local/state/setup-terminal 2>/dev/null || true
+        echo "   ✅ Claude Code state hook removed"
+      else
+        echo "   ⚠️  Could not remove the Claude Code hook — try it manually:"
+        echo "      herdr integration uninstall claude"
+        echo "      (marker kept, so re-running this reset will retry)"
+      fi
+    else
+      echo "   ⏭  Claude Code hook left alone (not installed by this setup)"
+    fi
+  fi
+elif [[ -f ~/.local/state/setup-terminal/herdr-claude-hook ]]; then
+  # The setup-installed hook is still registered, but the binary that owns its
+  # removal is gone (the hook lives in ~/.claude/hooks plus entries in
+  # ~/.claude/settings.json, so removal must go through herdr itself). Without
+  # this branch the hook would be silently orphaned, erroring in every Claude
+  # Code session.
+  echo "⚠️  herdr is gone, but the Claude Code hook it installed is still active"
+  echo "   (it will error in Claude Code sessions until removed). To clean it up:"
+  echo "      brew install herdr   — then re-run this reset"
+fi
+
 # --- 5. Uninstall Homebrew packages ---
 if command -v brew &>/dev/null; then
   echo ""
@@ -114,10 +196,26 @@ if command -v brew &>/dev/null; then
     echo ""
   fi
   if [[ $UNINSTALL_PKGS =~ ^[Yy]$ ]]; then
-    PKGS=(fzf zsh-autosuggestions zsh-syntax-highlighting zsh-completions starship tmux gh bun ripgrep fd zoxide git-delta aider gemini-cli opencode)
+    PKGS=(fzf zsh-autosuggestions zsh-syntax-highlighting zsh-completions starship tmux herdr gh bun ripgrep fd zoxide git-delta aider gemini-cli opencode)
     CASKS=(claude-code codex font-monaspice-nerd-font)
     for pkg in "${PKGS[@]}"; do
       if brew list "$pkg" &>/dev/null; then
+        # Uninstalling herdr while the setup-installed Claude hook is still
+        # registered would orphan the hook: removal goes through
+        # `herdr integration uninstall`, which needs the binary that's about
+        # to disappear. Remove the hook first; if that fails, keep herdr so
+        # the hook stays removable.
+        if [[ "$pkg" == "herdr" ]] && [[ -f ~/.local/state/setup-terminal/herdr-claude-hook ]]; then
+          echo "   herdr: removing its Claude Code hook first (broken without the binary)..."
+          if herdr integration uninstall claude &>/dev/null; then
+            rm -f ~/.local/state/setup-terminal/herdr-claude-hook
+            rmdir ~/.local/state/setup-terminal 2>/dev/null || true
+          else
+            echo "   ⚠️  Hook removal failed — keeping herdr so the hook stays removable."
+            echo "      Run manually: herdr integration uninstall claude"
+            continue
+          fi
+        fi
         echo "   Removing $pkg..."
         brew uninstall "$pkg" 2>/dev/null || true
       fi
@@ -137,7 +235,7 @@ echo ""
 echo "✅ Reset complete."
 if [[ $REMOVE_CONFIGS =~ ^[Yy]$ ]]; then
   echo "   ~/.zshrc replaced with minimal version"
-  echo "   ~/.zshenv cleaned (setup-terminal.sh lines removed, other content preserved)"
+  echo "   ~/.zshenv and ~/.zprofile cleaned (setup-terminal.sh block removed, other content preserved)"
 fi
 echo "   Quit Terminal.app (Cmd+Q) and reopen to start fresh."
 echo ""
