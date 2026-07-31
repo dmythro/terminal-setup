@@ -1,8 +1,8 @@
 #!/bin/bash
-# =============================================================================
-# macOS Terminal Setup
-# Run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/dmythro/terminal-setup/main/setup-terminal.sh)"
-# =============================================================================
+# ============================================================
+# terminal-setup — macOS terminal setup
+# https://github.com/dmythro/terminal-setup
+# ============================================================
 
 set -e
 
@@ -28,7 +28,9 @@ if [[ "$YES_MODE" != "true" ]]; then
   fi
 fi
 
-echo "🚀 Setting up terminal..."
+# --- Welcome banner ---
+echo "terminal-setup — macOS terminal setup"
+echo "https://github.com/dmythro/terminal-setup"
 echo ""
 echo "⚠️  This overwrites ~/.zshrc and ~/.config/starship.toml without backup"
 echo "   (plus ~/.tmux.conf or ~/.config/herdr/config.toml if you pick that"
