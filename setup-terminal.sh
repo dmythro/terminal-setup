@@ -347,7 +347,13 @@ HERDR
 # unknown keys; herdr itself would otherwise accept the file, fall back to
 # defaults for anything invalid, and only warn at startup — leaving the config
 # silently not doing what it says. (Note: it does not validate theme names.)
-if herdr config check &>/dev/null; then
+# The command -v guard keeps a missing binary (tolerated install failure) from
+# being misreported as a validation failure — exit 127 would land in the else
+# branch and tell the user to run a command that doesn't exist.
+if ! command -v herdr &>/dev/null; then
+  echo "   ⏭  Config written; herdr isn't installed yet, so it was not validated."
+  echo "      After installing, check it with: herdr config check"
+elif herdr config check &>/dev/null; then
   # Reload if a herdr server is already running
   herdr server reload-config &>/dev/null || true
 else
