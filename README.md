@@ -10,6 +10,8 @@ While it includes an optional Terminal.app dark theme profile, the shell configu
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/dmythro/terminal-setup/main/setup-terminal.sh)"
 ```
 
+Setup says up front which files it overwrites (`~/.zshrc`, the Starship config, and the multiplexer config if you pick one — there's no backup yet, see [Roadmap](#roadmap)) and asks for confirmation before touching anything. `~/.zshenv` and `~/.zprofile` are safe either way: only a marked block is managed, the rest is preserved.
+
 To undo everything:
 
 ```bash
@@ -282,8 +284,8 @@ The reset script interactively undoes everything:
 
 - Cleans `~/.zshenv` and `~/.zprofile` (removes only the `# BEGIN/END setup-terminal.sh` block — anything else you keep in those files is left alone)
 - Replaces `~/.zshrc` with a minimal version
-- Removes `~/.tmux.conf`, `~/.config/herdr/config.toml`, and `~/.config/starship.toml`
-- Optionally kills tmux sessions, stops the herdr server, and removes herdr's Claude Code hook — but **only if setup installed it**. Setup records that in `~/.local/state/setup-terminal/`, because the hook file is always named `herdr-agent-state.sh` and is otherwise indistinguishable from one you installed yourself. Hooks for other agents are never touched.
+- Removes `~/.tmux.conf`, `~/.config/herdr/config.toml`, and `~/.config/starship.toml` — unless one is a symlink (chezmoi, stow), in which case it's emptied in place so your dotfile manager's link survives
+- Optionally kills tmux sessions, stops the herdr server, and removes herdr's Claude Code hook — but **only if setup installed it**. Setup records that in `~/.local/state/setup-terminal/`, because the hook file is always named `herdr-agent-state.sh` and is otherwise indistinguishable from one you installed yourself. Hooks for other agents are never touched. If you also uninstall packages, the hook is removed before the herdr binary goes, so it can't be left behind pointing at a missing command.
 - Optionally resets Terminal.app profile to Basic
 - Optionally uninstalls all Homebrew packages added by the setup
 
