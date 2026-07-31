@@ -30,6 +30,12 @@ fi
 
 echo "🚀 Setting up terminal..."
 
+# Homebrew 6.0 made "ask mode" the default: `brew install` prints the plan and
+# waits for y/n whenever dependencies are involved. Every install below already
+# sits behind our own prompt, so suppress the second confirmation. Ignored by
+# Homebrew < 6.0.
+export HOMEBREW_NO_ASK=1
+
 # --- 1. Install Homebrew if missing ---
 if ! command -v brew &>/dev/null; then
   echo "📦 Installing Homebrew..."
@@ -41,23 +47,50 @@ if ! command -v brew &>/dev/null; then
   fi
 fi
 
+# Resolve once — /opt/homebrew on Apple Silicon, /usr/local on Intel.
+BREW_PREFIX="$(brew --prefix)"
+
 # --- 2. Core packages ---
 echo "📦 Installing core packages..."
 brew install fzf zsh-autosuggestions zsh-syntax-highlighting zsh-completions starship
-chmod go-w "$(brew --prefix)/share/zsh-completions" "$(brew --prefix)/share"
+chmod go-w "${BREW_PREFIX}/share/zsh-completions" "${BREW_PREFIX}/share"
 
-# --- 3. Optional tmux ---
+# --- 3. Optional multiplexer (none / herdr / tmux) ---
+#
+# A multiplexer does three separable jobs: layout (tabs/splits), persistence
+# (detach/reattach), and agent-state awareness. Warp already does layout and
+# agent notifications natively, so a multiplexer there is redundant — the
+# auto-start in .zshrc below skips Warp and editor terminals for that reason.
 echo ""
 if [[ "$YES_MODE" == "true" ]]; then
-  INSTALL_TMUX=n
+  MUX=none
 else
-  read -p "📦 Install tmux for split panes? (auto-starts per session) [y/N] " -n 1 -r INSTALL_TMUX < /dev/tty
+  echo "🖥  Terminal multiplexer — persistent sessions, tabs and splits in one window:"
+  echo "     1) none   — your terminal already does tabs (default; right choice for Warp)"
+  echo "     2) herdr  — agent-aware: sidebar + notifications for Claude Code, Codex, etc."
+  echo "     3) tmux   — the classic; pick this if you also use it on remote servers"
+  read -p "   Choose [1/2/3] " -n 1 -r MUX_CHOICE < /dev/tty
   echo ""
+  case "$MUX_CHOICE" in
+    2) MUX=herdr ;;
+    3) MUX=tmux ;;
+    *) MUX=none ;;
+  esac
 fi
-if [[ $INSTALL_TMUX =~ ^[Yy]$ ]]; then
-  brew install tmux
-  echo "   ✅ tmux installed"
-fi
+
+case "$MUX" in
+  herdr)
+    brew install herdr
+    echo "   ✅ herdr installed"
+    ;;
+  tmux)
+    brew install tmux
+    echo "   ✅ tmux installed"
+    ;;
+  *)
+    echo "   ⏭  No multiplexer — using your terminal's own tabs"
+    ;;
+esac
 
 # --- 4. Optional dev tools ---
 echo ""
@@ -75,8 +108,9 @@ fi
 
 # --- 5. AI coding agents (listed in summary, not installed) ---
 
-# --- 6. Install fzf key bindings ---
-yes | $(brew --prefix)/opt/fzf/install --key-bindings --completion --no-update-rc 2>/dev/null || true
+# --- 6. fzf shell integration ---
+# Nothing to install: modern fzf ships `fzf --zsh`, sourced from .zshrc below.
+# (The old ~/.fzf.zsh install script is legacy and no longer in brew's caveats.)
 
 # --- 7. Configure git to use delta (if installed) ---
 if command -v delta &>/dev/null; then
@@ -91,7 +125,7 @@ if command -v delta &>/dev/null; then
 fi
 
 # --- 8. Write tmux.conf (if tmux selected) ---
-if [[ $INSTALL_TMUX =~ ^[Yy]$ ]]; then
+if [[ "$MUX" == "tmux" ]]; then
 echo "📝 Writing ~/.tmux.conf..."
 cat > ~/.tmux.conf << 'TMUX'
 # =============================================================================
@@ -188,47 +222,188 @@ TMUX
 [[ -n "$TMUX" ]] && tmux source-file ~/.tmux.conf 2>/dev/null || true
 fi
 
-# --- 9a. Write .zshenv (PATH for ALL zsh invocations, incl. non-interactive) ---
-echo "📝 Updating ~/.zshenv..."
-touch ~/.zshenv
-if ! grep -Fqx '# BEGIN setup-terminal.sh' ~/.zshenv 2>/dev/null; then
-  TMP_ZSHENV="$(mktemp "${HOME}/.zshenv.tmp.XXXXXX")"
-  cat > "$TMP_ZSHENV" << 'ZSHENV'
-# BEGIN setup-terminal.sh
-[[ -x /opt/homebrew/bin/brew ]] && eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null)"
-export PATH="$HOME/.local/bin:$PATH"
-# END setup-terminal.sh
-ZSHENV
-  cat ~/.zshenv >> "$TMP_ZSHENV"
-  if [[ -L ~/.zshenv ]]; then
-    cat "$TMP_ZSHENV" > ~/.zshenv
-    rm -f "$TMP_ZSHENV"
+# --- 8b. Write herdr config (if herdr selected) ---
+if [[ "$MUX" == "herdr" ]]; then
+echo "📝 Writing ~/.config/herdr/config.toml..."
+mkdir -p ~/.config/herdr
+cat > ~/.config/herdr/config.toml << 'HERDR'
+# =============================================================================
+# herdr Config — minimal chrome, agent notifications
+# Validate changes with: herdr config check   •   Reload: Ctrl+B then Shift+R
+# =============================================================================
+
+# Notification setup is configured below, so skip the first-run wizard.
+onboarding = false
+
+[theme]
+# Matches the Dracula theme used by fzf and delta elsewhere in this setup.
+name = "dracula"
+
+[theme.custom]
+# Let herdr's panels inherit the terminal background instead of painting
+# their own — keeps it visually flush with the Terminal.app profile.
+panel_bg = "reset"
+
+[update]
+# herdr is installed via Homebrew, so let `brew upgrade` own the version
+# rather than having herdr nag about updating itself.
+version_check = false
+
+[terminal]
+# "auto" = login shells on macOS, so ~/.zprofile PATH ordering applies in panes.
+shell_mode = "auto"
+# New panes/tabs inherit the current directory.
+new_cwd = "follow"
+
+[ui]
+# --- Minimal chrome: no borders, no gaps, no tab bar until there are 2 tabs ---
+pane_borders = false
+pane_gaps = false
+hide_tab_bar_when_single_tab = true
+
+# --- Agent sidebar hidden by default — Ctrl+B then B to toggle it ---
+# Set sidebar_collapsed_mode = "compact" for an always-visible status rail.
+sidebar_start_collapsed = true
+sidebar_collapsed_mode = "hidden"
+
+# Drag to select copies straight to the clipboard (matches the tmux config).
+copy_on_select = true
+
+[ui.toast]
+# Agent state changes become real macOS notifications — the reason to run
+# herdr under Terminal.app at all. Use "herdr" for in-app toasts instead.
+delivery = "system"
+
+# =============================================================================
+# Keys (defaults shown — prefix is Ctrl+B, same as tmux)
+#   Prefix + c        new tab          Prefix + n / p    next / prev tab
+#   Prefix + 1..9     switch tab       Prefix + minus    split down
+#   Prefix + v        split right      Prefix + x        close pane
+#   Prefix + hjkl     navigate panes   Prefix + z        zoom pane
+#   Prefix + b        toggle sidebar   Prefix + q        detach
+#   Prefix + r        resize mode      Prefix + ?        help
+#
+# To switch tabs without the prefix, uncomment (terminal-dependent):
+# [keys.indexed]
+# tabs = "ctrl"
+# =============================================================================
+HERDR
+
+# Reload if a herdr server is already running
+command -v herdr &>/dev/null && herdr server reload-config &>/dev/null || true
+fi
+
+# --- 8c. Optional Claude Code state hook for herdr ---
+# Only offered when Claude Code is actually installed. The hook reports exact
+# blocked/working/done state instead of herdr guessing from terminal output.
+if [[ "$MUX" == "herdr" ]] && command -v claude &>/dev/null; then
+  echo ""
+  if [[ "$YES_MODE" == "true" ]]; then
+    INSTALL_HERDR_HOOK=n
   else
-    mv "$TMP_ZSHENV" ~/.zshenv
+    read -p "🔔 Claude Code detected — install herdr's state hook? (writes ~/.claude/hooks) [y/N] " -n 1 -r INSTALL_HERDR_HOOK < /dev/tty
+    echo ""
+  fi
+  if [[ $INSTALL_HERDR_HOOK =~ ^[Yy]$ ]]; then
+    herdr integration install claude && echo "   ✅ Claude Code state hook installed"
   fi
 fi
+
+# --- 9a. Write PATH block to .zshenv + .zprofile ---
+#
+# Both files are needed, and the split is not redundant:
+#   ~/.zshenv   — sourced by EVERY zsh, including the non-interactive shells AI
+#                 coding agents spawn. Without it, `zsh -c` can't find brew.
+#   ~/.zprofile — macOS ships an /etc/zprofile that runs `path_helper`, which
+#                 rebuilds PATH from /etc/paths and pushes everything ~/.zshenv
+#                 prepended BELOW /usr/bin. That runs after ~/.zshenv, so a
+#                 login shell (what Terminal.app gives you) would otherwise get
+#                 Apple's git/python ahead of Homebrew's. Re-assert after it.
+#
+# `typeset -U path fpath` keeps entries unique, so applying the block twice is
+# idempotent rather than duplicating every entry.
+
+emit_path_block() {
+  cat << PATHBLOCK
+# BEGIN setup-terminal.sh
+$1
+typeset -U path fpath
+[[ -x ${BREW_PREFIX}/bin/brew ]] && eval "\$(${BREW_PREFIX}/bin/brew shellenv 2>/dev/null)"
+path=("\$HOME/.local/bin" ${BREW_PREFIX}/bin ${BREW_PREFIX}/sbin \$path)
+export PATH
+# END setup-terminal.sh
+PATHBLOCK
+}
+
+install_path_block() {
+  local target="$1" comment="$2" tmp
+  touch "$target"
+  tmp="$(mktemp "${target}.tmp.XXXXXX")"
+  emit_path_block "$comment" > "$tmp"
+  # Append the user's own content, dropping any block a previous run wrote so
+  # re-running picks up changes. Filtering on the way out (rather than `sed -i`)
+  # keeps symlinked dotfiles — chezmoi, stow — intact.
+  sed '/^# BEGIN setup-terminal\.sh$/,/^# END setup-terminal\.sh$/d' "$target" >> "$tmp"
+  if [[ -L "$target" ]]; then
+    cat "$tmp" > "$target"
+    rm -f "$tmp"
+  else
+    mv "$tmp" "$target"
+  fi
+}
+
+echo "📝 Updating ~/.zshenv and ~/.zprofile..."
+install_path_block ~/.zshenv \
+  '# PATH for ALL zsh invocations, including the non-interactive shells
+# that AI coding agents spawn.'
+install_path_block ~/.zprofile \
+  '# Re-assert PATH after macOS /etc/zprofile runs path_helper, which would
+# otherwise demote Homebrew and ~/.local/bin below /usr/bin.'
 
 # --- 9b. Write .zshrc ---
 echo "📝 Writing ~/.zshrc..."
 
-# Determine tmux toggle value
-if [[ $INSTALL_TMUX =~ ^[Yy]$ ]]; then
-  TMUX_TOGGLE="true"
-else
-  TMUX_TOGGLE="false"
-fi
+# Multiplexer to auto-start (none / herdr / tmux)
+MUX_TOGGLE="$MUX"
 
 cat > ~/.zshrc << 'ZSHRC'
 # =============================================================================
 # Zsh Config
 # =============================================================================
 
-# --- tmux auto-start ---
-# Set USE_TMUX=false in ~/.zshrc to disable tmux auto-start
-USE_TMUX=__TMUX_TOGGLE__
-if [[ "$USE_TMUX" == "true" ]] && command -v tmux &>/dev/null && [[ -z "$TMUX" ]] && [[ "$TERM_PROGRAM" == "Apple_Terminal" || "$TERM_PROGRAM" == "iTerm.app" ]]; then
-  tmux new-session
+# --- Multiplexer auto-start ---
+# Set USE_MUX=none here to disable. Values: none | herdr | tmux
+#
+# Opt-out rather than opt-in, so it works in Terminal.app, iTerm, Ghostty,
+# WezTerm, Kitty, Alacritty and anything else without needing an entry here.
+# Two skip lists, because not every terminal is identifiable the same way:
+#
+#   NO_MUX_TERMS — matched against $TERM_PROGRAM
+#     WarpTerminal                already has tabs, splits, agent notifications
+#     vscode / zed / JetBrains    editor-embedded, tied to the editor's panel
+#
+#   NO_MUX_VARS — marker variables, for apps that don't report a distinct
+#     $TERM_PROGRAM. cmux is built on libghostty and reports as Ghostty, so
+#     $TERM_PROGRAM can't distinguish it; its docs name CMUX_WORKSPACE_ID as
+#     the supported way to detect it. Both cmux and Superset are agent-first
+#     terminals with their own vertical tabs and notifications, so a
+#     multiplexer inside them is the Warp situation again.
+USE_MUX=__MUX_TOGGLE__
+NO_MUX_TERMS=(WarpTerminal vscode zed JetBrains-JediTerm)
+NO_MUX_VARS=(CMUX_WORKSPACE_ID SUPERSET_WORKSPACE_NAME)
+
+_mux_blocked=0
+[[ -n "$TERM_PROGRAM" ]] && (( ${NO_MUX_TERMS[(Ie)$TERM_PROGRAM]} )) && _mux_blocked=1
+for _v in $NO_MUX_VARS; do [[ -n "${(P)_v}" ]] && _mux_blocked=1; done
+
+if (( ! _mux_blocked )) && [[ -o interactive ]] && [[ -t 1 ]] && [[ -z "$CI" ]] &&
+   [[ -z "$TMUX" && -z "$HERDR_SESSION" ]]; then
+  case "$USE_MUX" in
+    tmux)  command -v tmux  &>/dev/null && tmux new-session ;;
+    herdr) command -v herdr &>/dev/null && herdr ;;
+  esac
 fi
+unset _mux_blocked _v
 
 # --- History ---
 HISTSIZE=50000
@@ -247,9 +422,14 @@ zle -N down-line-or-beginning-search
 bindkey "^[[A" up-line-or-beginning-search
 bindkey "^[[B" down-line-or-beginning-search
 
+# --- Homebrew prefix ---
+# Exported by ~/.zshenv via `brew shellenv`; the fallback only runs if that
+# file is missing. Avoids three `brew --prefix` subprocesses per shell start.
+: ${HOMEBREW_PREFIX:=$(brew --prefix 2>/dev/null)}
+
 # --- Tab completion ---
 # Extra completions from zsh-completions
-FPATH=$(brew --prefix)/share/zsh-completions:$FPATH
+fpath=($HOMEBREW_PREFIX/share/zsh-completions $fpath)
 autoload -Uz compinit && compinit
 zstyle ':completion:*' menu select
 zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'
@@ -257,15 +437,17 @@ zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
 
 # --- Plugins ---
 # Fish-like autosuggestions (grey ghost text, → to accept)
-source $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+[[ -r $HOMEBREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]] &&
+  source $HOMEBREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh
 ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=240'
 ZSH_AUTOSUGGEST_STRATEGY=(history completion)
 
 # Syntax highlighting (commands turn green/red as you type)
-source $(brew --prefix)/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+[[ -r $HOMEBREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]] &&
+  source $HOMEBREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
 # fzf fuzzy search (Ctrl+R for history, Ctrl+T for files)
-[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+command -v fzf &>/dev/null && source <(fzf --zsh)
 export FZF_DEFAULT_OPTS='--height 40% --layout=reverse --border --color=fg:#f8f8f2,bg:#282a36,hl:#bd93f9,fg+:#f8f8f2,bg+:#44475a,hl+:#bd93f9,info:#ffb86c,prompt:#50fa7b,pointer:#ff79c6,marker:#ff79c6'
 
 # Use ripgrep/fd with fzf if available
@@ -319,8 +501,8 @@ zle -N clear-screen-and-scrollback
 bindkey '^K' clear-screen-and-scrollback
 ZSHRC
 
-# Replace tmux toggle placeholder with actual value
-sed -i '' "s/__TMUX_TOGGLE__/$TMUX_TOGGLE/" ~/.zshrc
+# Replace multiplexer placeholder with actual value
+sed -i '' "s/__MUX_TOGGLE__/$MUX_TOGGLE/" ~/.zshrc
 
 # --- 10. Starship config ---
 mkdir -p ~/.config
@@ -440,10 +622,29 @@ echo "   • Monaspace Nerd Font installed — set it in Terminal.app:"
 echo "     Settings > Profiles > Font > Change > MonaspiceNe Nerd Font"
 fi
 fi
-if [[ $INSTALL_TMUX =~ ^[Yy]$ ]]; then
+if [[ "$MUX" == "herdr" ]]; then
+echo ""
+echo "   herdr (Prefix = Ctrl+B):"
+echo "   • Auto-starts in your terminal — set USE_MUX=none in ~/.zshrc to disable"
+echo "   • Skipped in Warp and editor terminals (see NO_MUX_TERMS in ~/.zshrc)"
+echo "   • Minimal chrome: no pane borders, tab bar hidden until you open a 2nd tab"
+echo "   • Prefix + b    toggle the agent sidebar (blocked / working / done / idle)"
+echo "   • Prefix + c    new tab  •  Prefix + n/p  next/prev  •  Prefix + 1..9  jump"
+echo "   • Prefix + -    split down  •  Prefix + v  split right  •  Prefix + x  close"
+echo "   • Prefix + hjkl navigate panes  •  Prefix + z  zoom  •  Prefix + r  resize"
+echo "   • Prefix + q    detach (agents keep running)  •  Prefix + ?  help"
+echo "   • Agent state changes raise macOS notifications"
+echo "   • Config: ~/.config/herdr/config.toml — validate with 'herdr config check'"
+if [[ $INSTALL_HERDR_HOOK =~ ^[Yy]$ ]]; then
+echo "   • Claude Code state hook installed — exact state, not output guessing"
+elif command -v claude &>/dev/null; then
+echo "   • For exact Claude Code state: herdr integration install claude"
+fi
+fi
+if [[ "$MUX" == "tmux" ]]; then
 echo ""
 echo "   tmux (Prefix = Ctrl+B):"
-echo "   • Auto-starts per session — set USE_TMUX=false in ~/.zshrc to disable"
+echo "   • Auto-starts in your terminal — set USE_MUX=none in ~/.zshrc to disable"
 echo "   • Mouse: drag to copy (goes to clipboard), drag borders to resize, scroll to browse"
 echo "   • Prefix + |    split vertical"
 echo "   • Prefix + -    split horizontal"

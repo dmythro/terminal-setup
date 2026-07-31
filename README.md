@@ -2,7 +2,7 @@
 
 A curated one-command macOS terminal setup for **zsh** and the native **Terminal.app**. Installs a fast, modern shell environment with sensible defaults — optimized for speed and AI coding agents.
 
-While it includes an optional Terminal.app dark theme profile, the shell configuration works in **any terminal emulator** — [iTerm2](https://iterm2.com), [Ghostty](https://ghostty.org), [Alacritty](https://alacritty.org), [Kitty](https://sw.kovidez.net/kitty/), [WezTerm](https://wezfurlong.org/wezterm/), VS Code integrated terminal, etc. The zsh config, prompt, and plugins are terminal-agnostic.
+While it includes an optional Terminal.app dark theme profile, the shell configuration works in **any terminal emulator** — [iTerm2](https://iterm2.com), [Ghostty](https://ghostty.org), [Warp](https://www.warp.dev), [Alacritty](https://alacritty.org), [Kitty](https://sw.kovidez.net/kitty/), [WezTerm](https://wezfurlong.org/wezterm/), VS Code integrated terminal, etc. The zsh config, prompt, and plugins are terminal-agnostic. The optional [multiplexer](#optional--multiplexer-none--herdr--tmux) is the one part that is terminal-aware: it auto-starts only where it adds something, and stays out of the way in terminals like Warp that already do tabs and agent notifications.
 
 ## Quick Start
 
@@ -22,7 +22,7 @@ To undo everything:
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/dmythro/terminal-setup/main/setup-terminal.sh)" -- -y
 ```
 
-Installs core packages and dev tools without prompts. Skips tmux, Nerd Font, and Terminal.app profile (these change shell behavior or are visual preferences — choose them interactively).
+Installs core packages and dev tools without prompts. Skips the multiplexer, Nerd Font, and Terminal.app profile (these change shell behavior or are visual preferences — choose them interactively).
 
 To reset non-interactively:
 
@@ -30,7 +30,7 @@ To reset non-interactively:
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/dmythro/terminal-setup/main/reset-terminal.sh)" -- -y
 ```
 
-Removes configs, resets Terminal.app profile, and kills tmux sessions without prompts. Skips package uninstall (packages are inert without configs).
+Removes configs, resets Terminal.app profile, kills tmux sessions, and stops the herdr server without prompts. Skips package uninstall (packages are inert without configs).
 
 ## Features
 
@@ -42,7 +42,7 @@ Removes configs, resets Terminal.app profile, and kills tmux sessions without pr
 - Fast cross-shell prompt with git info and exec time (Starship)
 - macOS-native word jumping and deletion (Option+Arrow, Option+Delete)
 - Multiline command editing with Option+Enter
-- Optional: tmux with mouse support, split panes, and clipboard integration
+- Optional: multiplexer — herdr (agent-aware) or tmux (classic), or neither
 - Optional: dev tools — gh, bun, ripgrep, fd, zoxide, delta
 - Optional: Terminal.app dark theme profile
 - macOS 26 Tahoe true color support
@@ -66,18 +66,32 @@ Plus a hand-tuned `~/.zshrc` with:
 - Smart terminal tab titles showing current directory and command
 - Aliases: `ll`, `gs`, `gl`, `gd`, `..`, `...`
 
-### Optional — tmux
+### Optional — Multiplexer (none / herdr / tmux)
 
-| Package | What it does |
-|---------|-------------|
-| [tmux](https://github.com/tmux/tmux) | Terminal multiplexer — split panes, persistent sessions, tabs |
+Setup asks which one you want. A multiplexer does three separable jobs — **layout** (tabs and splits), **persistence** (detach and reattach), and **agent-state awareness** (which agent is blocked, working, or done). How much you need depends entirely on your terminal:
 
-Includes a mouse-friendly `~/.tmux.conf`:
+| Choice | Pick it when |
+|--------|--------------|
+| **none** (default) | Your terminal already does tabs and agent notifications — [Warp](https://www.warp.dev), [cmux](https://github.com/manaflow-ai/cmux), [Superset](https://superset.sh). Adding a multiplexer there just costs you screen chrome. |
+| [**herdr**](https://herdr.dev) | You're in Terminal.app or iTerm and want the agent sidebar and notifications a modern terminal would give you. |
+| [**tmux**](https://github.com/tmux/tmux) | You want the classic, or you already use it on remote servers. |
 
-- Auto-starts per terminal session (toggle with `USE_TMUX=false` in `~/.zshrc`)
-- Mouse support: drag to select and copy, drag borders to resize, scroll to browse
-- 50K scrollback, true color support, no escape delay
-- See [Keyboard Shortcuts](#keyboard-shortcuts) for keybindings
+Either multiplexer auto-starts in whatever terminal you're in — Terminal.app, iTerm, Ghostty, WezTerm, Kitty, Alacritty and so on — **except** where it would be redundant or intrusive. Two lists near the top of `~/.zshrc` control that, both easy to extend:
+
+- `NO_MUX_TERMS` — matched against `$TERM_PROGRAM`: Warp (layout and agent notifications already native) and editor-embedded terminals (VS Code, Zed, JetBrains)
+- `NO_MUX_VARS` — marker variables, for agent-first terminals that don't report a distinct `$TERM_PROGRAM`. cmux is built on libghostty and identifies as Ghostty, so it's detected via `CMUX_WORKSPACE_ID` (the method its own docs recommend); Superset via `SUPERSET_WORKSPACE_NAME`.
+
+It also won't start inside an existing tmux/herdr session, in CI, or in a non-interactive or piped shell. Toggle the whole thing with `USE_MUX=none`.
+
+### A note on agent-first terminals
+
+[cmux](https://github.com/manaflow-ai/cmux) (`brew install --cask cmux`, GPL) and [Superset](https://superset.sh) (`brew install --cask superset`, Elastic License 2.0) come up a lot alongside herdr, but they're a **different category** — standalone macOS apps that replace your terminal, like Warp does, rather than multiplexers you run inside one. They're alternatives to Warp, not to herdr/tmux, which is why they aren't options in the prompt above. If you use one, pick **none** — this setup's zsh config, prompt, and plugins work in them just the same.
+
+**herdr** gets a `~/.config/herdr/config.toml` tuned for minimal chrome — no pane borders or gaps, tab bar hidden until you open a second tab, and the agent sidebar collapsed to zero width until `Prefix + B`. Agent state changes raise real macOS notifications, and self-update checks are off since Homebrew owns the version. If Claude Code is installed, setup offers to add herdr's state hook for exact blocked/working/done reporting instead of terminal-output guessing. Validate edits with `herdr config check`.
+
+**tmux** gets a mouse-friendly `~/.tmux.conf` — drag to select and copy, drag borders to resize, scroll to browse, 50K scrollback, true color, no escape delay.
+
+See [Keyboard Shortcuts](#keyboard-shortcuts) for both.
 
 ### Optional — Dev Tools
 
@@ -114,9 +128,9 @@ A dark theme profile (`Dmythro.terminal`) imported directly into Terminal.app:
 
 ## Keyboard Shortcuts
 
-### Shell (with or without tmux)
+### Shell (with or without a multiplexer)
 
-These are zsh-level bindings — they work in any terminal, with or without tmux.
+These are zsh-level bindings — they work in any terminal, with or without herdr/tmux.
 
 | Key | Action |
 |-----|--------|
@@ -155,11 +169,32 @@ These only work inside a tmux session. For the full list of default tmux keys, s
 
 > Arrow keys are intentionally unbound in tmux to avoid conflicts with Option+Arrow word jumping in zsh.
 
+### herdr (Prefix = `Ctrl+B`)
+
+Same prefix as tmux, but tab-first. `Prefix + ?` opens herdr's own help with the authoritative list.
+
+| Key | Action |
+|-----|--------|
+| `Prefix + c` | New tab |
+| `Prefix + n` / `p` | Next / previous tab |
+| `Prefix + 1`…`9` | Jump to tab |
+| `Prefix + v` | Split right |
+| `Prefix + -` | Split down |
+| `Prefix + h/j/k/l` | Navigate panes (left/down/up/right) |
+| `Prefix + z` | Zoom/unzoom pane |
+| `Prefix + x` | Close pane |
+| `Prefix + r` | Resize mode |
+| `Prefix + b` | Toggle the agent sidebar (blocked / working / done / idle) |
+| `Prefix + q` | Detach — agents keep running |
+| `Prefix + w` | Workspace picker |
+| `Prefix + Shift+R` | Reload `config.toml` |
+
 ### Clipboard
 
 | Context | How to copy |
 |---------|-------------|
 | **tmux** | Mouse drag to select — automatically copied to macOS clipboard on release. Or `Prefix + [` to enter copy mode, select text, press `Enter` or `y` to copy. |
+| **herdr** | Mouse drag to select — copied on release (`copy_on_select`). Double-click copies a word. |
 | **Terminal.app** | Native selection with `Cmd+C` to copy (standard macOS behavior) |
 
 ## AI Coding Agents Comparison
@@ -186,7 +221,7 @@ macOS 26 (Tahoe) introduced the [first major Terminal.app update in 24 years](ht
 - **Powerline font support** — Starship and other prompt tools can display icons and glyphs natively
 - **Liquid Glass themes** — new built-in visual design
 
-This setup automatically detects macOS 26+ and enables `COLORTERM=truecolor` for full color support. The tmux config uses `tmux-256color` with true color overrides.
+This setup automatically detects macOS 26+ and enables `COLORTERM=truecolor` for full color support. The tmux config uses `tmux-256color` with true color overrides; herdr renders through the host terminal, so it inherits true color with no extra configuration.
 
 > **Check your version:** Apple menu > About This Mac, or run `sw_vers -productVersion` in Terminal. macOS 26.3 is the [current stable release](https://support.apple.com/en-us/122868) (February 2026).
 
@@ -220,12 +255,13 @@ Setting up a productive terminal on a fresh Mac takes time. This script does it 
 The zsh configuration is optimized for working with AI coding agents:
 
 - **Option+Enter** inserts a literal newline for multiline command editing
-- **Large scrollback** (50K lines in both zsh and tmux) for reviewing agent output
+- **Large scrollback** for reviewing agent output — 50K lines in zsh and tmux, 10 MB per pane in herdr
 - **Fast prompt** ([Starship](https://starship.rs) is written in Rust) that doesn't slow down rapid command execution
 - **ripgrep + fd** integration for agents that rely on fast file search
 - **zoxide** for quick directory jumping across project repos
 - **delta** for readable diffs when reviewing agent-generated changes
-- **tmux** for persistent sessions that survive disconnects
+- **PATH set in `~/.zshenv`** so the non-interactive shells agents spawn can find Homebrew, and re-asserted in `~/.zprofile` so macOS's `path_helper` can't demote it below `/usr/bin`
+- **herdr or tmux** for persistent sessions that survive disconnects — herdr additionally surfaces which agent is blocked, working, or done
 
 ## Files
 
@@ -244,9 +280,10 @@ The reset script interactively undoes everything:
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/dmythro/terminal-setup/main/reset-terminal.sh)"
 ```
 
-- Cleans `~/.zshenv` (removes Homebrew and `~/.local/bin` PATH lines added by setup)
+- Cleans `~/.zshenv` and `~/.zprofile` (removes only the `# BEGIN/END setup-terminal.sh` block — anything else you keep in those files is left alone)
 - Replaces `~/.zshrc` with a minimal version
-- Removes `~/.tmux.conf` and `~/.config/starship.toml`
+- Removes `~/.tmux.conf`, `~/.config/herdr/config.toml`, and `~/.config/starship.toml`
+- Optionally kills tmux sessions, stops the herdr server, and removes herdr's agent hooks (these live in `~/.claude/hooks` and friends, so they have to be removed through `herdr integration uninstall`)
 - Optionally resets Terminal.app profile to Basic
 - Optionally uninstalls all Homebrew packages added by the setup
 

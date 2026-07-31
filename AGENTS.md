@@ -8,31 +8,77 @@ A GitHub repo ([dmythro/terminal-setup](https://github.com/dmythro/terminal-setu
 
 ## Files
 
-- `setup-terminal.sh` — Interactive setup script that installs packages and writes config files (`~/.zshenv`, `~/.zshrc`, `~/.tmux.conf`, `~/.config/starship.toml`)
+- `setup-terminal.sh` — Interactive setup script that installs packages and writes config files (`~/.zshenv`, `~/.zprofile`, `~/.zshrc`, `~/.tmux.conf`, `~/.config/herdr/config.toml`, `~/.config/starship.toml`)
 - `reset-terminal.sh` — Interactive reset script that undoes setup-terminal.sh (removes configs, optionally uninstalls packages)
 - `Dmythro.terminal` — Terminal.app profile plist (dark theme, MonaspiceNe NFM 14pt, 120x36)
-- `README.md` — User-facing documentation with feature tables, comparison chart, and quick start
+- `README.md` — User-facing documentation with feature tables, multiplexer + agent comparison charts, keyboard shortcuts, and quick start
 - `AGENTS.md` — This file (symlinked as `CLAUDE.md` for Claude Code compatibility)
 
 ## Script Structure
 
-The script uses `set -e` and is sequential with interactive prompts (`read -p`). It writes config files inline using **quoted heredocs** (`cat > ~/.file << 'TAG'`) so variables aren't expanded during write. The tmux toggle uses a `__TMUX_TOGGLE__` placeholder in the zshrc heredoc, replaced via `sed -i ''` after writing — this is the only value that needs post-write substitution.
+The script uses `set -e` and is sequential with interactive prompts (`read -p`). It writes config files inline using **quoted heredocs** (`cat > ~/.file << 'TAG'`) so variables aren't expanded during write. The multiplexer choice uses a `__MUX_TOGGLE__` placeholder in the zshrc heredoc, replaced via `sed -i ''` after writing — this is the only value that needs post-write substitution. (The PATH block in section 9a is the one *unquoted* heredoc, since it has to interpolate `$BREW_PREFIX`; `\$` escapes preserve the runtime variables.)
 
-`REPO_RAW` (line 9) is used to download `Dmythro.terminal` from the repo at runtime (section 11).
+`REPO_RAW` (line 9) is used to download `Dmythro.terminal` from the repo at runtime (section 12).
 
-Key sections: Homebrew install → core packages (incl. zsh-completions) → optional tmux → optional dev tools (incl. zoxide, delta) → optional AI coding agents → fzf keybindings → delta git config → tmux.conf → .zshenv (PATH) → .zshrc (interactive config) → starship.toml → Terminal.app profile import → summary output.
+Key sections: 1 Homebrew install → `BREW_PREFIX` resolution → 2 core packages (incl. zsh-completions) → 3 multiplexer choice (none/herdr/tmux) → 4 optional dev tools (incl. zoxide, delta) → 5 AI agents (summary text only, nothing installed) → 6 fzf note (no-op) → 7 delta git config → 8 tmux.conf → 8b herdr config.toml → 8c herdr Claude hook → 9a .zshenv + .zprofile (PATH) → 9b .zshrc (interactive config) → 10 starship.toml → 11 Nerd Font → 12 Terminal.app profile import → 13 summary output.
 
-**`.zshenv` vs `.zshrc` split**: PATH setup (brew shellenv, `~/.local/bin`) lives in `~/.zshenv` because it's sourced by ALL zsh invocations including non-interactive shells (used by AI coding agents like Claude Code). Interactive-only config (completions, plugins, aliases, prompt) stays in `~/.zshrc`. The `.zshenv` block is bracketed with `# BEGIN/END setup-terminal.sh` markers for idempotent writes and precise cleanup.
+**PATH lives in BOTH `~/.zshenv` and `~/.zprofile`** — this is not redundant, and removing either one breaks a real case:
 
-`reset-terminal.sh` mirrors this structure with per-section interactive prompts. It cleans setup-terminal.sh lines from `~/.zshenv` (preserving other content like cargo) and replaces `~/.zshrc` with a minimal version. Packages are left installed by default since they're inert without configs.
+- `~/.zshenv` is sourced by *every* zsh, including the non-interactive shells AI coding agents spawn. Without it, `zsh -c` can't find brew.
+- `~/.zprofile` is needed because macOS ships an `/etc/zprofile` that runs `path_helper`, which **rebuilds PATH from `/etc/paths` and demotes anything `~/.zshenv` prepended to below `/usr/bin`**. It runs *after* `~/.zshenv`, so a login shell (what Terminal.app gives you) would otherwise resolve Apple's `git`/`python3` ahead of Homebrew's. The `.zprofile` copy re-asserts the order after `path_helper`.
+
+Both blocks are written by `install_path_block()` from a single `emit_path_block()` template, bracketed with `# BEGIN/END setup-terminal.sh` markers. The block starts with `typeset -U path fpath` so applying it twice dedupes instead of duplicating. `install_path_block()` **strips any previous block and rewrites it**, so re-running setup converges (matching how `.zshrc`/`.tmux.conf` are overwritten wholesale). It filters on the way out rather than using `sed -i`, which keeps symlinked dotfiles (chezmoi, stow) intact.
+
+Interactive-only config (completions, plugins, aliases, prompt) stays in `~/.zshrc`, which uses `$HOMEBREW_PREFIX` (exported by `brew shellenv` in `.zshenv`) instead of calling `brew --prefix` three times per shell start.
+
+`reset-terminal.sh` mirrors this structure with per-section interactive prompts. It cleans setup-terminal.sh blocks from both `~/.zshenv` and `~/.zprofile` (preserving other content like cargo or OrbStack, and deleting a file only if the cleanup left it empty) and replaces `~/.zshrc` with a minimal version. Packages are left installed by default since they're inert without configs.
+
+## Homebrew 6.0 Notes
+
+- **Ask mode is the default.** `brew install`/`upgrade` print a plan and wait for `y/n` whenever dependencies are involved and both stdin and stdout are TTYs. Since the script runs from a terminal, this would prompt on nearly every install and would break `-y`. `setup-terminal.sh` exports `HOMEBREW_NO_ASK=1` up front; the flag equivalent (`brew install -y`) is avoided because it doesn't exist on Homebrew < 6.0, whereas an unknown env var is simply ignored.
+- **`brew shellenv` no longer exports PATH directly** on macOS 14+. It emits `eval "$(PATH_HELPER_ROOT=<prefix> /usr/libexec/path_helper -s)"` and writes `<prefix>/etc/paths`. Don't assume its output contains a literal `export PATH=` line.
+- **Tap trust**: third-party taps must be explicitly trusted and are no longer auto-tapped. The script only uses core formulae/casks, so nothing to do — but don't add a `brew tap` of a third-party tap without handling trust.
+- **Intel timeline**: `x86_64` moves to Tier 3 (no new bottles) in September 2026. `BREW_PREFIX` is resolved via `brew --prefix` rather than hardcoding `/opt/homebrew`, so Intel still works while it lasts.
+
+## fzf Shell Integration
+
+Shell integration comes from `source <(fzf --zsh)` in `.zshrc` — not the legacy `$(brew --prefix)/opt/fzf/install` script and not `~/.fzf.zsh`. Homebrew's fzf caveats no longer mention the install script, and the `~/.fzf.zsh` it generates is now just a PATH guard plus that same `fzf --zsh` call. `reset-terminal.sh` still removes `~/.fzf.zsh` to clean up after older runs.
+
+## Multiplexer (none / herdr / tmux)
+
+Section 3 sets `MUX` to one of `none` (default) / `herdr` / `tmux` from a numbered prompt. Everything downstream branches on `"$MUX"` — there is no `INSTALL_TMUX` variable any more. The `.zshrc` heredoc carries a `__MUX_TOGGLE__` placeholder, replaced by `sed -i ''` after writing, that becomes `USE_MUX=<value>`.
+
+**Auto-start is opt-out, not opt-in.** It runs in any terminal except those on the two skip lists in `.zshrc` — an allowlist would silently do nothing in Ghostty, WezTerm, Kitty, Alacritty and anything else not enumerated, which contradicts the README's claim that the setup works in any emulator. To exclude a terminal, add to a list rather than editing the condition.
+
+`NO_MUX_TERMS` — matched against `$TERM_PROGRAM`:
+
+- `WarpTerminal` — already has tabs, splits, and agent notifications; a multiplexer there only adds chrome and fights Warp's block model
+- `vscode`, `zed`, `JetBrains-JediTerm` — editor-embedded terminals tied to the editor's own panel
+
+`NO_MUX_VARS` — marker variables, for agent-first terminals that **can't be distinguished by `$TERM_PROGRAM`**:
+
+- `CMUX_WORKSPACE_ID` — [cmux](https://github.com/manaflow-ai/cmux) is built on libghostty and reports as Ghostty, so a `TERM_PROGRAM` check would either miss it or wrongly exclude real Ghostty. Its docs name this variable as the supported detection method.
+- `SUPERSET_WORKSPACE_NAME` — [Superset](https://superset.sh), same reasoning.
+
+Both are standalone terminal *applications* (Homebrew casks) in the same category as Warp — they replace the terminal rather than running inside it. **Don't add them as options to the `MUX` prompt**; that's a category error. They belong only on the skip list.
+
+Implementation notes: the `NO_MUX_TERMS` membership test is `(( ${NO_MUX_TERMS[(Ie)$TERM_PROGRAM]} ))` (zsh exact-match index lookup, 0 when absent), guarded by a `-n "$TERM_PROGRAM"` test first. `NO_MUX_VARS` is checked with `${(P)_v}` parameter-name expansion. The block ends with `unset _mux_blocked _v` so it exits 0 — a trailing non-zero status would paint the first Starship prompt red. Remaining guards: `-o interactive` and `-t 1` (skip piped/redirected shells), `-z "$CI"`, and `-z "$TMUX"` / `-z "$HERDR_SESSION"` (herdr exports `HERDR_SESSION`/`HERDR_PANE_ID` into panes) to prevent recursive nesting.
+
+herdr specifics:
+
+- Config is `~/.config/herdr/config.toml`, written in section 8b. Validate any edit with `herdr config check` — note it validates TOML shape and known keys, but **not** theme names, so a typo'd theme still reports `ok`.
+- Tuned for minimal chrome per the repo owner's preference: `pane_borders`/`pane_gaps` off, `hide_tab_bar_when_single_tab`, sidebar collapsed to `"hidden"`. `Prefix + B` toggles the sidebar; `sidebar_collapsed_mode = "compact"` is the always-visible-rail alternative.
+- `[update] version_check = false` because Homebrew owns the binary — otherwise herdr nags about self-updating a brew-managed install.
+- Section 8c offers `herdr integration install claude` **only when `command -v claude` succeeds**. The hook writes to `~/.claude/hooks/` plus entries in `~/.claude/settings.json`, which is why reset has to remove it through `herdr integration uninstall` rather than by deleting config files.
+- Valid integration targets come from `herdr integration install --help`; an unknown target exits 2. `gemini` is *not* one of them.
 
 ## Conventions
 
 - Config sections use `# --- N. Section Name ---` numbered comment style
 - Summary output at the end lists all installed features with emoji bullets
 - The summary is conditional — only shows sections for packages the user chose to install
-- The script is destructive — it overwrites `~/.zshrc`, `~/.tmux.conf`, and `~/.config/starship.toml` without backup. Don't test on a machine with configs you want to keep.
-- AI coding agent prompts default to Y for OpenCode and Claude Code, N for the rest
+- The script is destructive — it overwrites `~/.zshrc`, `~/.tmux.conf`, `~/.config/herdr/config.toml`, and `~/.config/starship.toml` without backup. Don't test on a machine with configs you want to keep. `~/.zshenv` and `~/.zprofile` are the exception: only the marked block is replaced, so unrelated content there survives.
+- Optional prompts default to N. Only the dev-tools prompt is auto-accepted under `-y`; the multiplexer, herdr Claude hook, Nerd Font, and Terminal.app profile are all skipped in non-interactive mode because they change shell behavior or are visual preferences.
 
 ## Terminal Profile Notes
 
@@ -40,7 +86,7 @@ Key sections: Homebrew install → core packages (incl. zsh-completions) → opt
 
 ## macOS 26 Support
 
-The .zshrc detects macOS 26+ via `sw_vers -productVersion` and sets `COLORTERM=truecolor`. The tmux config uses `tmux-256color` with true color overrides (`Tc`). This enables full 24-bit color in Terminal.app on Tahoe.
+The .zshrc detects macOS 26+ via `sw_vers -productVersion` and sets `COLORTERM=truecolor`. The tmux config uses `tmux-256color` with true color overrides (`Tc`). This enables full 24-bit color in Terminal.app on Tahoe. herdr needs nothing here — it renders through the host terminal and inherits its color support.
 
 ## AI Coding Agents
 

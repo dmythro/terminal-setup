@@ -36,24 +36,29 @@ if [[ "$YES_MODE" == "true" ]]; then
   REMOVE_CONFIGS=y
   echo "🗑  Resetting config files (auto-yes)..."
 else
-  read -p "🗑  Reset config files? (~/.zshrc, ~/.tmux.conf, ~/.config/starship.toml; clean ~/.zshenv) [y/N] " -n 1 -r REMOVE_CONFIGS < /dev/tty
+  read -p "🗑  Reset config files? (~/.zshrc, ~/.tmux.conf, herdr + starship configs; clean ~/.zshenv, ~/.zprofile) [y/N] " -n 1 -r REMOVE_CONFIGS < /dev/tty
   echo ""
 fi
 if [[ $REMOVE_CONFIGS =~ ^[Yy]$ ]]; then
   rm -f ~/.tmux.conf
   rm -f ~/.config/starship.toml
-  # Remove setup-terminal.sh block from .zshenv (keep other content like cargo)
-  if [[ -f ~/.zshenv ]]; then
-    sed -i '' '/^# BEGIN setup-terminal\.sh$/,/^# END setup-terminal\.sh$/d' ~/.zshenv
+  rm -f ~/.config/herdr/config.toml
+  rmdir ~/.config/herdr 2>/dev/null || true
+  # Remove setup-terminal.sh block from .zshenv/.zprofile (keep other content like cargo)
+  for f in ~/.zshenv ~/.zprofile; do
+    [[ -f "$f" ]] || continue
+    sed -i '' '/^# BEGIN setup-terminal\.sh$/,/^# END setup-terminal\.sh$/d' "$f"
     # Remove empty leading lines
-    sed -i '' '/./,$!d' ~/.zshenv
-  fi
+    sed -i '' '/./,$!d' "$f"
+    # Drop the file entirely if we left it empty
+    [[ -s "$f" ]] || rm -f "$f"
+  done
   # Write minimal .zshrc (PATH setup is in .zshenv)
   cat > ~/.zshrc << 'ZSHRC'
 # Minimal .zshrc
 ZSHRC
-  echo "   ✅ ~/.tmux.conf and starship.toml removed"
-  echo "   ✅ ~/.zshenv cleaned (Homebrew/local bin lines removed)"
+  echo "   ✅ ~/.tmux.conf, starship.toml and herdr config removed"
+  echo "   ✅ ~/.zshenv and ~/.zprofile cleaned (Homebrew/local bin lines removed)"
   echo "   ✅ ~/.zshrc replaced with minimal version"
 fi
 
@@ -104,6 +109,28 @@ if command -v tmux &>/dev/null && tmux list-sessions &>/dev/null 2>&1; then
   fi
 fi
 
+# --- 4b. Stop herdr server + remove agent hooks ---
+if command -v herdr &>/dev/null; then
+  if [[ "$YES_MODE" == "true" ]]; then
+    STOP_HERDR=y
+    echo "🔌 Stopping herdr server and removing agent hooks (auto-yes)..."
+  else
+    read -p "🔌 Stop herdr server and remove its agent hooks? [y/N] " -n 1 -r STOP_HERDR < /dev/tty
+    echo ""
+  fi
+  if [[ $STOP_HERDR =~ ^[Yy]$ ]]; then
+    herdr server stop &>/dev/null || true
+    # Hooks live outside herdr's own config (e.g. ~/.claude/hooks plus entries
+    # in ~/.claude/settings.json), so they have to be removed through herdr
+    # rather than by deleting config files. Names must match
+    # `herdr integration install --help` — an unknown target exits 2.
+    for agent in pi omp claude codex copilot devin droid kimi opencode kilo hermes qodercli cursor mastracode; do
+      herdr integration uninstall "$agent" &>/dev/null || true
+    done
+    echo "   ✅ herdr server stopped and agent hooks removed"
+  fi
+fi
+
 # --- 5. Uninstall Homebrew packages ---
 if command -v brew &>/dev/null; then
   echo ""
@@ -114,7 +141,7 @@ if command -v brew &>/dev/null; then
     echo ""
   fi
   if [[ $UNINSTALL_PKGS =~ ^[Yy]$ ]]; then
-    PKGS=(fzf zsh-autosuggestions zsh-syntax-highlighting zsh-completions starship tmux gh bun ripgrep fd zoxide git-delta aider gemini-cli opencode)
+    PKGS=(fzf zsh-autosuggestions zsh-syntax-highlighting zsh-completions starship tmux herdr gh bun ripgrep fd zoxide git-delta aider gemini-cli opencode)
     CASKS=(claude-code codex font-monaspice-nerd-font)
     for pkg in "${PKGS[@]}"; do
       if brew list "$pkg" &>/dev/null; then
