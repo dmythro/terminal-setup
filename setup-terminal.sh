@@ -50,10 +50,43 @@ fi
 # Resolve once — /opt/homebrew on Apple Silicon, /usr/local on Intel.
 BREW_PREFIX="$(brew --prefix)"
 
+# Install formulae one at a time, tolerating the ones that can't be installed.
+#
+# Two reasons this isn't just `brew install a b c`:
+#   1. A formula already installed from a different tap makes `brew install`
+#      fail outright — e.g. bun from oven-sh/bun shadows homebrew/core/bun:
+#      "Formulae with the same name from different taps cannot be installed at
+#      the same time." The user already has the package; that should not be an
+#      error.
+#   2. With `set -e`, any such failure aborted the entire run *before any config
+#      was written*, which is the worst possible place to stop — packages half
+#      installed and no ~/.zshrc.
+#
+# Already-installed formulae are skipped rather than upgraded: this script sets
+# up a terminal, it has no business forcing version bumps on packages you manage.
+BREW_SKIPPED=()
+BREW_FAILED=()
+brew_install() {
+  local pkg
+  for pkg in "$@"; do
+    if brew list --formula --versions "$pkg" &>/dev/null; then
+      BREW_SKIPPED+=("$pkg")
+      continue
+    fi
+    if ! brew install "$pkg"; then
+      BREW_FAILED+=("$pkg")
+      echo "   ⚠️  $pkg could not be installed — continuing without it"
+    fi
+  done
+}
+
 # --- 2. Core packages ---
 echo "📦 Installing core packages..."
-brew install fzf zsh-autosuggestions zsh-syntax-highlighting zsh-completions starship
-chmod go-w "${BREW_PREFIX}/share/zsh-completions" "${BREW_PREFIX}/share"
+brew_install fzf zsh-autosuggestions zsh-syntax-highlighting zsh-completions starship
+# Guarded: if zsh-completions was skipped or failed, the path won't exist and an
+# unguarded chmod would abort the run under `set -e`.
+[[ -d "${BREW_PREFIX}/share/zsh-completions" ]] &&
+  chmod go-w "${BREW_PREFIX}/share/zsh-completions" "${BREW_PREFIX}/share" || true
 
 # --- 3. Optional multiplexer (none / herdr / tmux) ---
 #
@@ -79,13 +112,15 @@ else
 fi
 
 case "$MUX" in
-  herdr)
-    brew install herdr
-    echo "   ✅ herdr installed"
-    ;;
-  tmux)
-    brew install tmux
-    echo "   ✅ tmux installed"
+  herdr|tmux)
+    brew_install "$MUX"
+    if command -v "$MUX" &>/dev/null; then
+      echo "   ✅ $MUX ready"
+    else
+      # Config still gets written; the .zshrc auto-start guard checks for the
+      # binary, so nothing breaks — it just won't start until you install it.
+      echo "   ⚠️  $MUX is not available — install it later with: brew install $MUX"
+    fi
     ;;
   *)
     echo "   ⏭  No multiplexer — using your terminal's own tabs"
@@ -102,8 +137,8 @@ else
   echo ""
 fi
 if [[ $INSTALL_DEV =~ ^[Yy]$ ]]; then
-  brew install gh bun ripgrep fd zoxide git-delta
-  echo "   ✅ Dev tools installed"
+  brew_install gh bun ripgrep fd zoxide git-delta
+  echo "   ✅ Dev tools done"
 fi
 
 # --- 5. AI coding agents (listed in summary, not installed) ---
@@ -584,8 +619,13 @@ else
   echo ""
 fi
 if [[ $INSTALL_FONT =~ ^[Yy]$ ]]; then
-  brew install --cask font-monaspice-nerd-font
-  echo "   ✅ Monaspace Nerd Font installed"
+  if brew list --cask --versions font-monaspice-nerd-font &>/dev/null; then
+    echo "   ✔︎ Monaspace Nerd Font already installed"
+  elif brew install --cask font-monaspice-nerd-font; then
+    echo "   ✅ Monaspace Nerd Font installed"
+  else
+    echo "   ⚠️  Monaspace Nerd Font could not be installed — continuing"
+  fi
 fi
 
 # --- 12. Terminal.app profile (optional) ---
@@ -634,6 +674,17 @@ echo "   ✅ Check 'Use Option as Meta key'"
 echo ""
 fi
 echo "✅ Done! Quit Terminal.app (Cmd+Q) and reopen to see all changes."
+if (( ${#BREW_SKIPPED[@]} )); then
+  echo ""
+  echo "   ⏭  Already installed, left untouched: ${BREW_SKIPPED[*]}"
+  echo "      (upgrade those yourself with: brew upgrade <name>)"
+fi
+if (( ${#BREW_FAILED[@]} )); then
+  echo ""
+  echo "   ⚠️  Could not install: ${BREW_FAILED[*]}"
+  echo "      Everything else was still configured. A common cause is the same"
+  echo "      formula existing in two taps — check with: brew info <name>"
+fi
 echo ""
 echo "📋 What you got:"
 echo "   • Prefix history search — type 'git' then ↑ to search"

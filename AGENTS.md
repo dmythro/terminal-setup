@@ -37,6 +37,17 @@ Interactive-only config (completions, plugins, aliases, prompt) stays in `~/.zsh
 
 `reset-terminal.sh` mirrors this structure with per-section interactive prompts. It cleans setup-terminal.sh blocks from both `~/.zshenv` and `~/.zprofile` (preserving other content like cargo or OrbStack, and deleting a file only if the cleanup left it empty) and replaces `~/.zshrc` with a minimal version. Packages are left installed by default since they're inert without configs.
 
+## Package Installation
+
+**All formulae go through `brew_install()`, never a bare `brew install a b c`.** It installs one at a time, skips anything already present, and records failures in `BREW_FAILED` instead of letting them propagate. Two reasons, both learned the hard way:
+
+- A formula already installed from a **different tap** makes `brew install` fail outright — `bun` from `oven-sh/bun` shadows `homebrew/core/bun`, and Homebrew refuses: *"Formulae with the same name from different taps cannot be installed at the same time."* The user already has the package; that is not an error condition.
+- Combined with `set -e`, any such failure aborted the run **in section 4 — before a single config file was written**. Packages half-installed, no `~/.zshrc`. The worst place to stop.
+
+Already-installed formulae are **skipped, not upgraded**. A terminal setup script has no business forcing version bumps on packages the user manages; skipped and failed names are both reported in the closing summary so nothing is silently swallowed.
+
+Anything that touches a Homebrew path must tolerate the package being absent — e.g. the `chmod go-w` on `share/zsh-completions` is guarded by a `-d` test, since an unguarded `chmod` on a missing path aborts under `set -e`.
+
 ## Homebrew 6.0 Notes
 
 - **Ask mode is the default.** `brew install`/`upgrade` print a plan and wait for `y/n` whenever dependencies are involved and both stdin and stdout are TTYs. Since the script runs from a terminal, this would prompt on nearly every install and would break `-y`. `setup-terminal.sh` exports `HOMEBREW_NO_ASK=1` up front; the flag equivalent (`brew install -y`) is avoided because it doesn't exist on Homebrew < 6.0, whereas an unknown env var is simply ignored.
