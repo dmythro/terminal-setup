@@ -97,7 +97,7 @@ herdr specifics:
 - Config sections use `# --- N. Section Name ---` numbered comment style. **Sections inserted later take a letter suffix** — `8b`, `8c`, `9a`, `9b` in `setup-terminal.sh`, `4b` in `reset-terminal.sh` — rather than renumbering everything downstream. Reviewers flag this as inconsistent with the `N.` format; it's deliberate, and keeps diffs to the lines that actually changed.
 - Summary output at the end lists all installed features with emoji bullets
 - The summary is conditional — only shows sections for packages the user chose to install
-- The script is destructive — it overwrites `~/.zshrc`, `~/.tmux.conf`, `~/.config/herdr/config.toml`, and `~/.config/starship.toml` without backup. Don't test on a machine with configs you want to keep. `~/.zshenv` and `~/.zprofile` are the exception: only the marked block is replaced, so unrelated content there survives.
+- The script is destructive — it overwrites `~/.zshrc`, `~/.tmux.conf`, `~/.config/herdr/config.toml`, and `~/.config/starship.toml` without backup. Don't test on a machine with configs you want to keep. `~/.zshenv` and `~/.zprofile` are the exception: only the marked block is replaced, so unrelated content there survives. Setup states this up front and asks `Continue? [Y/n]` (default yes) before doing anything; `-y` skips the prompt but still prints the warning. Don't remove that notice.
 - Optional prompts default to N. Only the dev-tools prompt is auto-accepted under `-y`; the multiplexer, herdr Claude hook, Nerd Font, and Terminal.app profile are all skipped in non-interactive mode because they change shell behavior or are visual preferences.
 
 ## Terminal Profile Notes

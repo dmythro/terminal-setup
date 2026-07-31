@@ -29,6 +29,19 @@ if [[ "$YES_MODE" != "true" ]]; then
 fi
 
 echo "🚀 Setting up terminal..."
+echo ""
+echo "⚠️  This overwrites ~/.zshrc and ~/.config/starship.toml without backup"
+echo "   (plus ~/.tmux.conf or ~/.config/herdr/config.toml if you pick that"
+echo "   multiplexer). ~/.zshenv and ~/.zprofile are safe — only a marked"
+echo "   block is managed; everything else in them is preserved."
+if [[ "$YES_MODE" != "true" ]]; then
+  read -p "   Continue? [Y/n] " -n 1 -r CONTINUE < /dev/tty
+  echo ""
+  if [[ $CONTINUE =~ ^[Nn]$ ]]; then
+    echo "   Aborted — nothing was changed."
+    exit 0
+  fi
+fi
 
 # Homebrew 6.0 made "ask mode" the default: `brew install` prints the plan and
 # waits for y/n whenever dependencies are involved. Every install below already
