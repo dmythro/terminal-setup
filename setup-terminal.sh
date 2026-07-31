@@ -313,14 +313,25 @@ copy_on_select = true
 # herdr under Terminal.app at all. Use "herdr" for in-app toasts instead.
 delivery = "system"
 
+[keys]
+# herdr ships `switch_workspace` unset, so out of the box there is no direct
+# chord for workspaces at all — Prefix + 1..9 switches *tabs*, and if each
+# workspace holds a single tab that looks like nothing happening. The only
+# routes would be the picker (Prefix + w) or navigate mode (Prefix + g).
+# This is herdr's own suggested binding for it.
+switch_workspace = "prefix+shift+1..9"
+
 # =============================================================================
-# Keys (defaults shown — prefix is Ctrl+B, same as tmux)
-#   Prefix + c        new tab          Prefix + n / p    next / prev tab
-#   Prefix + 1..9     switch tab       Prefix + minus    split down
-#   Prefix + v        split right      Prefix + x        close pane
-#   Prefix + hjkl     navigate panes   Prefix + z        zoom pane
-#   Prefix + b        toggle sidebar   Prefix + q        detach
-#   Prefix + r        resize mode      Prefix + ?        help
+# Keys (defaults unless listed above — prefix is Ctrl+B, same as tmux)
+#   Prefix + c        new tab            Prefix + n / p     next / prev tab
+#   Prefix + 1..9     switch tab         Prefix + Shift+1..9 switch workspace
+#   Prefix + Shift+N  new workspace      Prefix + w         workspace picker
+#   Prefix + Shift+W  rename workspace   Prefix + g         navigate mode
+#   Prefix + minus    split down         Prefix + v         split right
+#   Prefix + x        close pane         Prefix + z         zoom pane
+#   Prefix + hjkl     navigate panes     Prefix + r         resize mode
+#   Prefix + b        toggle sidebar     Prefix + q         detach
+#   Prefix + ?        help (authoritative — check here first)
 #
 # To switch tabs without the prefix, uncomment (terminal-dependent):
 # [keys.indexed]
