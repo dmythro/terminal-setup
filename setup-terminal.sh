@@ -655,10 +655,16 @@ else
   read -p "🔤 Install Monaspace Nerd Font? (icons for Starship + dev tools) [y/N] " -n 1 -r INSTALL_FONT < /dev/tty
   echo ""
 fi
+# FONT_INSTALLED feeds the closing summary — the prompt answer alone isn't
+# enough, since a failed cask install is tolerated and the warning about it
+# will have scrolled away by the time the summary prints.
+FONT_INSTALLED=false
 if [[ $INSTALL_FONT =~ ^[Yy]$ ]]; then
   if brew list --cask --versions font-monaspice-nerd-font &>/dev/null; then
+    FONT_INSTALLED=true
     echo "   ✔︎ Monaspace Nerd Font already installed"
   elif brew install --cask font-monaspice-nerd-font; then
+    FONT_INSTALLED=true
     echo "   ✅ Monaspace Nerd Font installed"
   else
     echo "   ⚠️  Monaspace Nerd Font could not be installed — continuing"
@@ -736,13 +742,16 @@ echo "   • Tab/window title shows current dir and command"
 if [[ $INSTALL_PROFILE =~ ^[Yy]$ ]]; then
 echo "   • Dark theme with MonaspiceNe NFM 14pt"
 fi
-if [[ $INSTALL_FONT =~ ^[Yy]$ ]]; then
+if [[ "$FONT_INSTALLED" == "true" ]]; then
 if [[ $INSTALL_PROFILE =~ ^[Yy]$ ]]; then
 echo "   • Monaspace Nerd Font installed (already set in profile)"
 else
 echo "   • Monaspace Nerd Font installed — set it in Terminal.app:"
 echo "     Settings > Profiles > Font > Change > MonaspiceNe Nerd Font"
 fi
+elif [[ $INSTALL_FONT =~ ^[Yy]$ ]]; then
+echo "   • Monaspace Nerd Font FAILED to install — retry with:"
+echo "     brew install --cask font-monaspice-nerd-font"
 fi
 if [[ "$MUX" == "herdr" ]]; then
 echo ""
