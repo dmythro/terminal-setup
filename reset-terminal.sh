@@ -36,7 +36,7 @@ if [[ "$YES_MODE" == "true" ]]; then
   REMOVE_CONFIGS=y
   echo "🗑  Resetting config files (auto-yes)..."
 else
-  read -p "🗑  Reset config files? (~/.zshrc, ~/.tmux.conf, herdr + starship configs; clean ~/.zshenv, ~/.zprofile) [y/N] " -n 1 -r REMOVE_CONFIGS < /dev/tty
+  read -p "🗑  Reset config files — no backup? Replaces ~/.zshrc, deletes ~/.tmux.conf + herdr/starship configs, cleans ~/.zshenv and ~/.zprofile [y/N] " -n 1 -r REMOVE_CONFIGS < /dev/tty
   echo ""
 fi
 if [[ $REMOVE_CONFIGS =~ ^[Yy]$ ]]; then
@@ -120,14 +120,14 @@ if command -v herdr &>/dev/null; then
   fi
   if [[ $STOP_HERDR =~ ^[Yy]$ ]]; then
     herdr server stop &>/dev/null || true
-    # Hooks live outside herdr's own config (e.g. ~/.claude/hooks plus entries
-    # in ~/.claude/settings.json), so they have to be removed through herdr
-    # rather than by deleting config files. Names must match
-    # `herdr integration install --help` — an unknown target exits 2.
-    for agent in pi omp claude codex copilot devin droid kimi opencode kilo hermes qodercli cursor mastracode; do
-      herdr integration uninstall "$agent" &>/dev/null || true
-    done
-    echo "   ✅ herdr server stopped and agent hooks removed"
+    # Only `claude` — that is the sole integration setup-terminal.sh installs,
+    # and reset's contract is to undo setup, not to remove hooks you added by
+    # hand for other agents (which -y would then delete without asking).
+    # The hook lives outside herdr's own config (~/.claude/hooks plus entries
+    # in ~/.claude/settings.json), so it has to go through herdr rather than
+    # by deleting config files.
+    herdr integration uninstall claude &>/dev/null || true
+    echo "   ✅ herdr server stopped and Claude Code hook removed"
   fi
 fi
 

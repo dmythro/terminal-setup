@@ -2,7 +2,7 @@
 
 A curated one-command macOS terminal setup for **zsh** and the native **Terminal.app**. Installs a fast, modern shell environment with sensible defaults — optimized for speed and AI coding agents.
 
-While it includes an optional Terminal.app dark theme profile, the shell configuration works in **any terminal emulator** — [iTerm2](https://iterm2.com), [Ghostty](https://ghostty.org), [Warp](https://www.warp.dev), [Alacritty](https://alacritty.org), [Kitty](https://sw.kovidez.net/kitty/), [WezTerm](https://wezfurlong.org/wezterm/), VS Code integrated terminal, etc. The zsh config, prompt, and plugins are terminal-agnostic. The optional [multiplexer](#optional--multiplexer-none--herdr--tmux) is the one part that is terminal-aware: it auto-starts only where it adds something, and stays out of the way in terminals like Warp that already do tabs and agent notifications.
+While it includes an optional Terminal.app dark theme profile, the shell configuration works in **any terminal emulator** — [iTerm2](https://iterm2.com), [Ghostty](https://ghostty.org), [Warp](https://www.warp.dev), [Alacritty](https://alacritty.org), [Kitty](https://sw.kovidgoyal.net/kitty/), [WezTerm](https://wezfurlong.org/wezterm/), VS Code integrated terminal, etc. The zsh config, prompt, and plugins are terminal-agnostic. The optional [multiplexer](#optional--multiplexer-none--herdr--tmux) is the one part that is terminal-aware: it auto-starts only where it adds something, and stays out of the way in terminals like Warp that already do tabs and agent notifications.
 
 ## Quick Start
 
@@ -283,7 +283,7 @@ The reset script interactively undoes everything:
 - Cleans `~/.zshenv` and `~/.zprofile` (removes only the `# BEGIN/END setup-terminal.sh` block — anything else you keep in those files is left alone)
 - Replaces `~/.zshrc` with a minimal version
 - Removes `~/.tmux.conf`, `~/.config/herdr/config.toml`, and `~/.config/starship.toml`
-- Optionally kills tmux sessions, stops the herdr server, and removes herdr's agent hooks (these live in `~/.claude/hooks` and friends, so they have to be removed through `herdr integration uninstall`)
+- Optionally kills tmux sessions, stops the herdr server, and removes herdr's Claude Code hook (it lives in `~/.claude/hooks` plus `~/.claude/settings.json`, so it has to be removed through `herdr integration uninstall`). Hooks you added by hand for other agents are left alone.
 - Optionally resets Terminal.app profile to Basic
 - Optionally uninstalls all Homebrew packages added by the setup
 
