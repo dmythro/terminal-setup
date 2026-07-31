@@ -81,7 +81,7 @@ Either multiplexer auto-starts in whatever terminal you're in — Terminal.app, 
 - `NO_MUX_TERMS` — matched against `$TERM_PROGRAM`: Warp (layout and agent notifications already native) and editor-embedded terminals (VS Code, Zed, JetBrains)
 - `NO_MUX_VARS` — marker variables, for agent-first terminals that don't report a distinct `$TERM_PROGRAM`. cmux is built on libghostty and identifies as Ghostty, so it's detected via `CMUX_WORKSPACE_ID` (the method its own docs recommend); Superset via `SUPERSET_WORKSPACE_NAME`.
 
-It also won't start inside an existing tmux/herdr session, in CI, or in a non-interactive or piped shell. Change the `USE_MUX` default in `~/.zshrc` to turn it off permanently, or override it for one shell with `USE_MUX=none zsh`.
+It also won't start inside an existing tmux/herdr session, in CI, over SSH, or in a non-interactive or piped shell. Change the `USE_MUX` default in `~/.zshrc` to turn it off permanently, or override it for one shell with `USE_MUX=none zsh`.
 
 ### A note on agent-first terminals
 

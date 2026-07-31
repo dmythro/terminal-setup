@@ -480,7 +480,11 @@ _mux_blocked=0
 [[ -n "$TERM_PROGRAM" ]] && (( ${NO_MUX_TERMS[(Ie)$TERM_PROGRAM]} )) && _mux_blocked=1
 for _v in $NO_MUX_VARS; do [[ -n "${(P)_v}" ]] && _mux_blocked=1; done
 
+# SSH sessions are skipped too: a fresh session per connection silently piles
+# up detached sessions server-side, and anyone who wants tmux over SSH already
+# starts it deliberately (usually to attach, not to spawn).
 if (( ! _mux_blocked )) && [[ -o interactive ]] && [[ -t 1 ]] && [[ -z "$CI" ]] &&
+   [[ -z "$SSH_TTY" && -z "$SSH_CONNECTION" ]] &&
    [[ -z "$TMUX" && -z "$HERDR_ENV" ]]; then
   case "$USE_MUX" in
     tmux)  command -v tmux  &>/dev/null && tmux new-session ;;
