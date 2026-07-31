@@ -289,8 +289,16 @@ delivery = "system"
 # =============================================================================
 HERDR
 
-# Reload if a herdr server is already running
-command -v herdr &>/dev/null && herdr server reload-config &>/dev/null || true
+# Validate before reloading. `herdr config check` catches TOML errors and
+# unknown keys; herdr itself would otherwise accept the file, fall back to
+# defaults for anything invalid, and only warn at startup — leaving the config
+# silently not doing what it says. (Note: it does not validate theme names.)
+if herdr config check &>/dev/null; then
+  # Reload if a herdr server is already running
+  herdr server reload-config &>/dev/null || true
+else
+  echo "   ⚠️  ~/.config/herdr/config.toml did not validate — run: herdr config check"
+fi
 fi
 
 # --- 8c. Optional Claude Code state hook for herdr ---
@@ -305,7 +313,16 @@ if [[ "$MUX" == "herdr" ]] && command -v claude &>/dev/null; then
     echo ""
   fi
   if [[ $INSTALL_HERDR_HOOK =~ ^[Yy]$ ]]; then
-    herdr integration install claude && echo "   ✅ Claude Code state hook installed"
+    if herdr integration install claude; then
+      # Record that *we* installed it. The hook is always named
+      # herdr-agent-state.sh, so reset cannot otherwise tell a hook this script
+      # installed from one the user installed themselves — and without this
+      # marker `reset -y` would silently remove theirs. Kept outside
+      # ~/.config/herdr because reset deletes that directory.
+      mkdir -p ~/.local/state/setup-terminal
+      touch ~/.local/state/setup-terminal/herdr-claude-hook
+      echo "   ✅ Claude Code state hook installed"
+    fi
   fi
 fi
 
@@ -387,7 +404,9 @@ cat > ~/.zshrc << 'ZSHRC'
 # =============================================================================
 
 # --- Multiplexer auto-start ---
-# Set USE_MUX=none here to disable. Values: none | herdr | tmux
+# Values: none | herdr | tmux. Edit the default below to change it permanently,
+# or override per-shell from the environment: `USE_MUX=none zsh` — hence the
+# `:-` default rather than a plain assignment, which would clobber it.
 #
 # Opt-out rather than opt-in, so it works in Terminal.app, iTerm, Ghostty,
 # WezTerm, Kitty, Alacritty and anything else without needing an entry here.
@@ -403,7 +422,7 @@ cat > ~/.zshrc << 'ZSHRC'
 #     the supported way to detect it. Both cmux and Superset are agent-first
 #     terminals with their own vertical tabs and notifications, so a
 #     multiplexer inside them is the Warp situation again.
-USE_MUX=__MUX_TOGGLE__
+USE_MUX=${USE_MUX:-__MUX_TOGGLE__}
 NO_MUX_TERMS=(WarpTerminal vscode zed JetBrains-JediTerm)
 NO_MUX_VARS=(CMUX_WORKSPACE_ID SUPERSET_WORKSPACE_NAME)
 

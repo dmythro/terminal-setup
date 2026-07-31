@@ -31,6 +31,8 @@ Both blocks are written by `install_path_block()` from a single `emit_path_block
 
 **Block removal uses awk, not `sed '/BEGIN/,/END/d'`** — in both `strip_path_block()` here and the matching loop in `reset-terminal.sh`. A sed range whose closing pattern never matches deletes through end of file, so a dotfile that kept the BEGIN marker but lost the END (hand-edited, truncated, partially copied) would lose everything after it. The awk version buffers the block and re-emits it untouched when no END appears. Don't "simplify" it back to sed.
 
+**Symlinked dotfiles are never deleted or replaced.** Both scripts write through a symlink (`cat > "$target"`) rather than over it, and reset's "delete if empty" step is gated on `[[ ! -L "$f" ]]`. A chezmoi/stow-managed `~/.zshenv` holding only the managed block ends up empty after cleanup — deleting it there would break the link the dotfile manager owns. An empty managed file is fine; a missing one is not.
+
 Interactive-only config (completions, plugins, aliases, prompt) stays in `~/.zshrc`, which uses `$HOMEBREW_PREFIX` (exported by `brew shellenv` in `.zshenv`) instead of calling `brew --prefix` three times per shell start.
 
 `reset-terminal.sh` mirrors this structure with per-section interactive prompts. It cleans setup-terminal.sh blocks from both `~/.zshenv` and `~/.zprofile` (preserving other content like cargo or OrbStack, and deleting a file only if the cleanup left it empty) and replaces `~/.zshrc` with a minimal version. Packages are left installed by default since they're inert without configs.
@@ -74,7 +76,10 @@ herdr specifics:
 - Tuned for minimal chrome per the repo owner's preference: `pane_borders`/`pane_gaps` off, `hide_tab_bar_when_single_tab`, sidebar collapsed to `"hidden"`. `Prefix + B` toggles the sidebar; `sidebar_collapsed_mode = "compact"` is the always-visible-rail alternative.
 - `[update] version_check = false` because Homebrew owns the binary — otherwise herdr nags about self-updating a brew-managed install.
 - Section 8c offers `herdr integration install claude` **only when `command -v claude` succeeds**. The hook writes to `~/.claude/hooks/` plus entries in `~/.claude/settings.json`, which is why reset has to remove it through `herdr integration uninstall` rather than by deleting config files.
+- **Ownership marker**: on a successful install, setup touches `~/.local/state/setup-terminal/herdr-claude-hook`, and reset removes the hook *only if that marker exists*. The hook file is always named `herdr-agent-state.sh`, so there is no way to distinguish one this script installed from one the user installed by hand — without the marker, `reset -y` would silently delete theirs. The marker deliberately lives outside `~/.config/herdr`, which reset deletes. Don't drop this check.
+- The generated config is validated with `herdr config check` before `herdr server reload-config`. herdr otherwise accepts a bad file, falls back to defaults, and only warns at startup — so an invalid config would silently not apply.
 - Valid integration targets come from `herdr integration install --help`; an unknown target exits 2. `gemini` is *not* one of them.
+- `USE_MUX` is written as `USE_MUX=${USE_MUX:-<choice>}` so `USE_MUX=none zsh` overrides per-shell. A plain assignment would clobber an exported value.
 
 ## Conventions
 

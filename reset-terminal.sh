@@ -68,8 +68,12 @@ if [[ $REMOVE_CONFIGS =~ ^[Yy]$ ]]; then
     else
       mv "$tmp" "$f"
     fi
-    # Drop the file only if nothing but whitespace is left
-    [[ -n "$(tr -d '[:space:]' < "$f")" ]] || rm -f "$f"
+    # Drop the file only if nothing but whitespace is left — and never delete a
+    # symlink, which would break the dotfile manager that put it there. An empty
+    # managed file is fine; a missing one means chezmoi/stow has to re-link it.
+    if [[ ! -L "$f" ]] && [[ -z "$(tr -d '[:space:]' < "$f")" ]]; then
+      rm -f "$f"
+    fi
   done
   # Write minimal .zshrc (PATH setup is in .zshenv)
   cat > ~/.zshrc << 'ZSHRC'
@@ -138,17 +142,22 @@ if command -v herdr &>/dev/null; then
   fi
   if [[ $STOP_HERDR =~ ^[Yy]$ ]]; then
     herdr server stop &>/dev/null || true
-    # Only `claude` — that is the sole integration setup-terminal.sh installs,
-    # and reset's contract is to undo setup, not to remove hooks you added by
-    # hand for other agents (which -y would then delete without asking).
-    # The hook lives outside herdr's own config (~/.claude/hooks plus entries
-    # in ~/.claude/settings.json), so it has to go through herdr rather than
-    # by deleting config files.
-    herdr integration uninstall claude &>/dev/null || true
-    # Best-effort, like the tmux and brew steps: both commands are no-ops when
-    # there is no server running / no hook installed. Worded so it doesn't
-    # claim to have removed something that was never there.
-    echo "   ✅ herdr server stopped and Claude Code hook cleared (if present)"
+    echo "   ✅ herdr server stopped"
+    # Only remove the Claude hook if setup-terminal.sh is the one that installed
+    # it. The hook is always named herdr-agent-state.sh, so there is no way to
+    # tell ours from one the user installed by hand — without this marker check,
+    # `reset -y` would silently delete theirs. Other agents' hooks are never
+    # touched: setup only ever installs `claude`.
+    # The hook lives outside herdr's own config (~/.claude/hooks plus entries in
+    # ~/.claude/settings.json), so removal has to go through herdr itself.
+    if [[ -f ~/.local/state/setup-terminal/herdr-claude-hook ]]; then
+      herdr integration uninstall claude &>/dev/null || true
+      rm -f ~/.local/state/setup-terminal/herdr-claude-hook
+      rmdir ~/.local/state/setup-terminal 2>/dev/null || true
+      echo "   ✅ Claude Code state hook removed"
+    else
+      echo "   ⏭  Claude Code hook left alone (not installed by this setup)"
+    fi
   fi
 fi
 

@@ -42,7 +42,7 @@ Removes configs, resets Terminal.app profile, kills tmux sessions, and stops the
 - Fast cross-shell prompt with git info and exec time (Starship)
 - macOS-native word jumping and deletion (Option+Arrow, Option+Delete)
 - Multiline command editing with Option+Enter
-- Optional: multiplexer — herdr (agent-aware) or tmux (classic), or neither
+- Optional: multiplexer — `none`, `herdr` (agent-aware), or `tmux` (classic)
 - Optional: dev tools — gh, bun, ripgrep, fd, zoxide, delta
 - Optional: Terminal.app dark theme profile
 - macOS 26 Tahoe true color support
@@ -81,13 +81,13 @@ Either multiplexer auto-starts in whatever terminal you're in — Terminal.app, 
 - `NO_MUX_TERMS` — matched against `$TERM_PROGRAM`: Warp (layout and agent notifications already native) and editor-embedded terminals (VS Code, Zed, JetBrains)
 - `NO_MUX_VARS` — marker variables, for agent-first terminals that don't report a distinct `$TERM_PROGRAM`. cmux is built on libghostty and identifies as Ghostty, so it's detected via `CMUX_WORKSPACE_ID` (the method its own docs recommend); Superset via `SUPERSET_WORKSPACE_NAME`.
 
-It also won't start inside an existing tmux/herdr session, in CI, or in a non-interactive or piped shell. Toggle the whole thing with `USE_MUX=none`.
+It also won't start inside an existing tmux/herdr session, in CI, or in a non-interactive or piped shell. Change the `USE_MUX` default in `~/.zshrc` to turn it off permanently, or override it for one shell with `USE_MUX=none zsh`.
 
 ### A note on agent-first terminals
 
 [cmux](https://github.com/manaflow-ai/cmux) (`brew install --cask cmux`, GPL) and [Superset](https://superset.sh) (`brew install --cask superset`, Elastic License 2.0) come up a lot alongside herdr, but they're a **different category** — standalone macOS apps that replace your terminal, like Warp does, rather than multiplexers you run inside one. They're alternatives to Warp, not to herdr/tmux, which is why they aren't options in the prompt above. If you use one, pick **none** — this setup's zsh config, prompt, and plugins work in them just the same.
 
-**herdr** gets a `~/.config/herdr/config.toml` tuned for minimal chrome — no pane borders or gaps, tab bar hidden until you open a second tab, and the agent sidebar collapsed to zero width until `Prefix + B`. Agent state changes raise real macOS notifications, and self-update checks are off since Homebrew owns the version. If Claude Code is installed, setup offers to add herdr's state hook for exact blocked/working/done reporting instead of terminal-output guessing. Validate edits with `herdr config check`.
+**herdr** gets a `~/.config/herdr/config.toml` tuned for minimal chrome — no pane borders or gaps, tab bar hidden until you open a second tab, and the agent sidebar collapsed to zero width until `Prefix + B`. Agent state changes raise real macOS notifications, and self-update checks are off since Homebrew owns the version. When `command -v claude` succeeds, setup offers to add herdr's state hook for exact blocked/working/done reporting instead of terminal-output guessing. Validate edits with `herdr config check`.
 
 **tmux** gets a mouse-friendly `~/.tmux.conf` — drag to select and copy, drag borders to resize, scroll to browse, 50K scrollback, true color, no escape delay.
 
@@ -106,7 +106,7 @@ See [Keyboard Shortcuts](#keyboard-shortcuts) for both.
 
 ### Optional — AI Coding Agents
 
-The setup includes an optional section for installing AI coding agent CLIs via Homebrew. Each agent is offered individually so you can pick the ones you use.
+Setup does **not** prompt for or install any AI coding agent. It just lists these with their install commands in the closing summary, so you can pick what you need when you need it.
 
 | Agent | Install | Open Source | Provider |
 |-------|---------|:-----------:|----------|
@@ -283,7 +283,7 @@ The reset script interactively undoes everything:
 - Cleans `~/.zshenv` and `~/.zprofile` (removes only the `# BEGIN/END setup-terminal.sh` block — anything else you keep in those files is left alone)
 - Replaces `~/.zshrc` with a minimal version
 - Removes `~/.tmux.conf`, `~/.config/herdr/config.toml`, and `~/.config/starship.toml`
-- Optionally kills tmux sessions, stops the herdr server, and removes herdr's Claude Code hook (it lives in `~/.claude/hooks` plus `~/.claude/settings.json`, so it has to be removed through `herdr integration uninstall`). Hooks you added by hand for other agents are left alone.
+- Optionally kills tmux sessions, stops the herdr server, and removes herdr's Claude Code hook — but **only if setup installed it**. Setup records that in `~/.local/state/setup-terminal/`, because the hook file is always named `herdr-agent-state.sh` and is otherwise indistinguishable from one you installed yourself. Hooks for other agents are never touched.
 - Optionally resets Terminal.app profile to Basic
 - Optionally uninstalls all Homebrew packages added by the setup
 
