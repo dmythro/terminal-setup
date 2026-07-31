@@ -104,6 +104,8 @@ herdr specifics:
 
 `Dmythro.terminal` already has `useOptionAsMetaKey` set to `true` in the plist. The script still shows a manual instruction for this (section 12) as a reminder, since Terminal.app may not always respect the plist value on import.
 
+The profile also sets `noWarnProcesses` to `screen`, `tmux`, `herdr` — without it, quitting Terminal.app with a multiplexer running always shows the "terminate running processes?" dialog. Apple's built-in default list covers `screen`/`tmux` but not `herdr`, and **setting the key replaces the default list entirely**, so `screen` and `tmux` must stay listed alongside `herdr`.
+
 ## macOS 26 Support
 
 The .zshrc detects macOS 26+ via `sw_vers -productVersion` and sets `COLORTERM=truecolor`. The tmux config uses `tmux-256color` with true color overrides (`Tc`). This enables full 24-bit color in Terminal.app on Tahoe. herdr needs nothing here — it renders through the host terminal and inherits its color support.

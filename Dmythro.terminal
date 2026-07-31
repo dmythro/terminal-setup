@@ -1574,6 +1574,21 @@
 	<integer>120</integer>
 	<key>name</key>
 	<string>Dmythro</string>
+	<key>noWarnProcesses</key>
+	<array>
+		<dict>
+			<key>ProcessName</key>
+			<string>screen</string>
+		</dict>
+		<dict>
+			<key>ProcessName</key>
+			<string>tmux</string>
+		</dict>
+		<dict>
+			<key>ProcessName</key>
+			<string>herdr</string>
+		</dict>
+	</array>
 	<key>rowCount</key>
 	<integer>36</integer>
 	<key>type</key>
