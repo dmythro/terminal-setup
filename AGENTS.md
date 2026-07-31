@@ -29,6 +29,8 @@ Key sections: 1 Homebrew install → `BREW_PREFIX` resolution → 2 core package
 
 Both blocks are written by `install_path_block()` from a single `emit_path_block()` template, bracketed with `# BEGIN/END setup-terminal.sh` markers. The block starts with `typeset -U path fpath` so applying it twice dedupes instead of duplicating. `install_path_block()` **strips any previous block and rewrites it**, so re-running setup converges (matching how `.zshrc`/`.tmux.conf` are overwritten wholesale). It filters on the way out rather than using `sed -i`, which keeps symlinked dotfiles (chezmoi, stow) intact.
 
+**Block removal uses awk, not `sed '/BEGIN/,/END/d'`** — in both `strip_path_block()` here and the matching loop in `reset-terminal.sh`. A sed range whose closing pattern never matches deletes through end of file, so a dotfile that kept the BEGIN marker but lost the END (hand-edited, truncated, partially copied) would lose everything after it. The awk version buffers the block and re-emits it untouched when no END appears. Don't "simplify" it back to sed.
+
 Interactive-only config (completions, plugins, aliases, prompt) stays in `~/.zshrc`, which uses `$HOMEBREW_PREFIX` (exported by `brew shellenv` in `.zshenv`) instead of calling `brew --prefix` three times per shell start.
 
 `reset-terminal.sh` mirrors this structure with per-section interactive prompts. It cleans setup-terminal.sh blocks from both `~/.zshenv` and `~/.zprofile` (preserving other content like cargo or OrbStack, and deleting a file only if the cleanup left it empty) and replaces `~/.zshrc` with a minimal version. Packages are left installed by default since they're inert without configs.
@@ -62,7 +64,9 @@ Section 3 sets `MUX` to one of `none` (default) / `herdr` / `tmux` from a number
 
 Both are standalone terminal *applications* (Homebrew casks) in the same category as Warp — they replace the terminal rather than running inside it. **Don't add them as options to the `MUX` prompt**; that's a category error. They belong only on the skip list.
 
-Implementation notes: the `NO_MUX_TERMS` membership test is `(( ${NO_MUX_TERMS[(Ie)$TERM_PROGRAM]} ))` (zsh exact-match index lookup, 0 when absent), guarded by a `-n "$TERM_PROGRAM"` test first. `NO_MUX_VARS` is checked with `${(P)_v}` parameter-name expansion. The block ends with `unset _mux_blocked _v` so it exits 0 — a trailing non-zero status would paint the first Starship prompt red. Remaining guards: `-o interactive` and `-t 1` (skip piped/redirected shells), `-z "$CI"`, and `-z "$TMUX"` / `-z "$HERDR_SESSION"` (herdr exports `HERDR_SESSION`/`HERDR_PANE_ID` into panes) to prevent recursive nesting.
+Implementation notes: the `NO_MUX_TERMS` membership test is `(( ${NO_MUX_TERMS[(Ie)$TERM_PROGRAM]} ))` (zsh exact-match index lookup, 0 when absent), guarded by a `-n "$TERM_PROGRAM"` test first. `NO_MUX_VARS` is checked with `${(P)_v}` parameter-name expansion. The block ends with `unset _mux_blocked _v` so it exits 0 — a trailing non-zero status would paint the first Starship prompt red. Remaining guards: `-o interactive` and `-t 1` (skip piped/redirected shells), `-z "$CI"`, and `-z "$TMUX"` / `-z "$HERDR_ENV"` to prevent recursive nesting.
+
+**The herdr nesting marker is `HERDR_ENV`, not `HERDR_SESSION`.** herdr's agent guide states "If `HERDR_ENV=1` is set in your environment, you are already running inside a Herdr pane", and herdr uses the same variable internally to refuse nested launches. Other `HERDR_*` names (`HERDR_SESSION`, `HERDR_PANE_ID`, `HERDR_SOCKET_PATH`) appear in the binary but are not the documented pane marker — don't substitute one of those.
 
 herdr specifics:
 

@@ -335,6 +335,21 @@ export PATH
 PATHBLOCK
 }
 
+# Echo $1 with any complete BEGIN/END setup-terminal.sh block removed.
+# Deliberately not `sed '/BEGIN/,/END/d'`: a sed range with no closing match
+# deletes to end of file, so a hand-edited or truncated dotfile that kept the
+# BEGIN marker but lost the END would lose everything after it. awk buffers the
+# block and puts it back untouched when no END turns up.
+strip_path_block() {
+  awk '
+    /^# BEGIN setup-terminal\.sh$/ && !inblk { inblk = 1; buf = $0 ORS; next }
+    inblk && /^# END setup-terminal\.sh$/    { inblk = 0; buf = ""; next }
+    inblk                                    { buf = buf $0 ORS; next }
+                                             { print }
+    END { if (inblk) printf "%s", buf }
+  ' "$1"
+}
+
 install_path_block() {
   local target="$1" comment="$2" tmp
   touch "$target"
@@ -343,7 +358,7 @@ install_path_block() {
   # Append the user's own content, dropping any block a previous run wrote so
   # re-running picks up changes. Filtering on the way out (rather than `sed -i`)
   # keeps symlinked dotfiles — chezmoi, stow — intact.
-  sed '/^# BEGIN setup-terminal\.sh$/,/^# END setup-terminal\.sh$/d' "$target" >> "$tmp"
+  strip_path_block "$target" >> "$tmp"
   if [[ -L "$target" ]]; then
     cat "$tmp" > "$target"
     rm -f "$tmp"
@@ -397,7 +412,7 @@ _mux_blocked=0
 for _v in $NO_MUX_VARS; do [[ -n "${(P)_v}" ]] && _mux_blocked=1; done
 
 if (( ! _mux_blocked )) && [[ -o interactive ]] && [[ -t 1 ]] && [[ -z "$CI" ]] &&
-   [[ -z "$TMUX" && -z "$HERDR_SESSION" ]]; then
+   [[ -z "$TMUX" && -z "$HERDR_ENV" ]]; then
   case "$USE_MUX" in
     tmux)  command -v tmux  &>/dev/null && tmux new-session ;;
     herdr) command -v herdr &>/dev/null && herdr ;;

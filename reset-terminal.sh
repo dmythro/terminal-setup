@@ -44,14 +44,32 @@ if [[ $REMOVE_CONFIGS =~ ^[Yy]$ ]]; then
   rm -f ~/.config/starship.toml
   rm -f ~/.config/herdr/config.toml
   rmdir ~/.config/herdr 2>/dev/null || true
-  # Remove setup-terminal.sh block from .zshenv/.zprofile (keep other content like cargo)
+  # Remove the setup-terminal.sh block from .zshenv/.zprofile, keeping other
+  # content (cargo, rustup, OrbStack, ...) exactly as-is.
+  #
+  # Deliberately not `sed '/BEGIN/,/END/d'`: a sed range with no closing match
+  # deletes to end of file, so a hand-edited or truncated dotfile that kept the
+  # BEGIN marker but lost the END would lose everything after it. awk buffers
+  # the block and puts it back untouched when no END turns up.
   for f in ~/.zshenv ~/.zprofile; do
     [[ -f "$f" ]] || continue
-    sed -i '' '/^# BEGIN setup-terminal\.sh$/,/^# END setup-terminal\.sh$/d' "$f"
-    # Remove empty leading lines
-    sed -i '' '/./,$!d' "$f"
-    # Drop the file entirely if we left it empty
-    [[ -s "$f" ]] || rm -f "$f"
+    tmp="$(mktemp "${f}.tmp.XXXXXX")"
+    awk '
+      /^# BEGIN setup-terminal\.sh$/ && !inblk { inblk = 1; buf = $0 ORS; next }
+      inblk && /^# END setup-terminal\.sh$/    { inblk = 0; buf = ""; next }
+      inblk                                    { buf = buf $0 ORS; next }
+                                               { print }
+      END { if (inblk) printf "%s", buf }
+    ' "$f" > "$tmp"
+    # Write back without clobbering a symlinked dotfile (chezmoi, stow)
+    if [[ -L "$f" ]]; then
+      cat "$tmp" > "$f"
+      rm -f "$tmp"
+    else
+      mv "$tmp" "$f"
+    fi
+    # Drop the file only if nothing but whitespace is left
+    [[ -n "$(tr -d '[:space:]' < "$f")" ]] || rm -f "$f"
   done
   # Write minimal .zshrc (PATH setup is in .zshenv)
   cat > ~/.zshrc << 'ZSHRC'
@@ -127,7 +145,10 @@ if command -v herdr &>/dev/null; then
     # in ~/.claude/settings.json), so it has to go through herdr rather than
     # by deleting config files.
     herdr integration uninstall claude &>/dev/null || true
-    echo "   ✅ herdr server stopped and Claude Code hook removed"
+    # Best-effort, like the tmux and brew steps: both commands are no-ops when
+    # there is no server running / no hook installed. Worded so it doesn't
+    # claim to have removed something that was never there.
+    echo "   ✅ herdr server stopped and Claude Code hook cleared (if present)"
   fi
 fi
 
@@ -164,7 +185,7 @@ echo ""
 echo "✅ Reset complete."
 if [[ $REMOVE_CONFIGS =~ ^[Yy]$ ]]; then
   echo "   ~/.zshrc replaced with minimal version"
-  echo "   ~/.zshenv cleaned (setup-terminal.sh lines removed, other content preserved)"
+  echo "   ~/.zshenv and ~/.zprofile cleaned (setup-terminal.sh block removed, other content preserved)"
 fi
 echo "   Quit Terminal.app (Cmd+Q) and reopen to start fresh."
 echo ""
