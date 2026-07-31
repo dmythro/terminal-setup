@@ -83,10 +83,14 @@ brew_install() {
 # --- 2. Core packages ---
 echo "📦 Installing core packages..."
 brew_install fzf zsh-autosuggestions zsh-syntax-highlighting zsh-completions starship
-# Guarded: if zsh-completions was skipped or failed, the path won't exist and an
-# unguarded chmod would abort the run under `set -e`.
+# compinit refuses group-writable fpath directories with an interactive
+# "insecure directories" prompt on every shell start, so fix perms on anything
+# .zshrc puts in fpath. Two separate statements: share/ needs the fix even when
+# zsh-completions failed to install (its subdirectory then doesn't exist, and
+# an unguarded chmod on a missing path would abort the run under `set -e`).
+[[ -d "${BREW_PREFIX}/share" ]] && chmod go-w "${BREW_PREFIX}/share" || true
 [[ -d "${BREW_PREFIX}/share/zsh-completions" ]] &&
-  chmod go-w "${BREW_PREFIX}/share/zsh-completions" "${BREW_PREFIX}/share" || true
+  chmod go-w "${BREW_PREFIX}/share/zsh-completions" || true
 
 # --- 3. Optional multiplexer (none / herdr / tmux) ---
 #
