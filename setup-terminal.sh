@@ -550,7 +550,9 @@ command -v fd &>/dev/null && export FZF_ALT_C_COMMAND='fd --type d --hidden --ex
 command -v zoxide &>/dev/null && eval "$(zoxide init zsh)"
 
 # --- Starship prompt ---
-eval "$(starship init zsh)"
+# Guarded like every other tool here: setup tolerates a failed install, so a
+# missing starship must mean the default prompt, not an error on every shell.
+command -v starship &>/dev/null && eval "$(starship init zsh)"
 
 # --- True color support (macOS 26+) ---
 if [[ "$(sw_vers -productVersion 2>/dev/null)" == 26.* ]]; then
