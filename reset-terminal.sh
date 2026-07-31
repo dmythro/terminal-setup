@@ -175,6 +175,15 @@ if command -v herdr &>/dev/null; then
       echo "   ⏭  Claude Code hook left alone (not installed by this setup)"
     fi
   fi
+elif [[ -f ~/.local/state/setup-terminal/herdr-claude-hook ]]; then
+  # The setup-installed hook is still registered, but the binary that owns its
+  # removal is gone (the hook lives in ~/.claude/hooks plus entries in
+  # ~/.claude/settings.json, so removal must go through herdr itself). Without
+  # this branch the hook would be silently orphaned, erroring in every Claude
+  # Code session.
+  echo "⚠️  herdr is gone, but the Claude Code hook it installed is still active"
+  echo "   (it will error in Claude Code sessions until removed). To clean it up:"
+  echo "      brew install herdr   — then re-run this reset"
 fi
 
 # --- 5. Uninstall Homebrew packages ---
@@ -191,6 +200,22 @@ if command -v brew &>/dev/null; then
     CASKS=(claude-code codex font-monaspice-nerd-font)
     for pkg in "${PKGS[@]}"; do
       if brew list "$pkg" &>/dev/null; then
+        # Uninstalling herdr while the setup-installed Claude hook is still
+        # registered would orphan the hook: removal goes through
+        # `herdr integration uninstall`, which needs the binary that's about
+        # to disappear. Remove the hook first; if that fails, keep herdr so
+        # the hook stays removable.
+        if [[ "$pkg" == "herdr" ]] && [[ -f ~/.local/state/setup-terminal/herdr-claude-hook ]]; then
+          echo "   herdr: removing its Claude Code hook first (broken without the binary)..."
+          if herdr integration uninstall claude &>/dev/null; then
+            rm -f ~/.local/state/setup-terminal/herdr-claude-hook
+            rmdir ~/.local/state/setup-terminal 2>/dev/null || true
+          else
+            echo "   ⚠️  Hook removal failed — keeping herdr so the hook stays removable."
+            echo "      Run manually: herdr integration uninstall claude"
+            continue
+          fi
+        fi
         echo "   Removing $pkg..."
         brew uninstall "$pkg" 2>/dev/null || true
       fi
