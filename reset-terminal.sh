@@ -159,10 +159,18 @@ if command -v herdr &>/dev/null; then
     # The hook lives outside herdr's own config (~/.claude/hooks plus entries in
     # ~/.claude/settings.json), so removal has to go through herdr itself.
     if [[ -f ~/.local/state/setup-terminal/herdr-claude-hook ]]; then
-      herdr integration uninstall claude &>/dev/null || true
-      rm -f ~/.local/state/setup-terminal/herdr-claude-hook
-      rmdir ~/.local/state/setup-terminal 2>/dev/null || true
-      echo "   ✅ Claude Code state hook removed"
+      # Drop the marker only when the uninstall actually succeeded — removing
+      # it on failure would leave the hook installed while a re-run reports
+      # "not installed by this setup" and never touches it again.
+      if herdr integration uninstall claude &>/dev/null; then
+        rm -f ~/.local/state/setup-terminal/herdr-claude-hook
+        rmdir ~/.local/state/setup-terminal 2>/dev/null || true
+        echo "   ✅ Claude Code state hook removed"
+      else
+        echo "   ⚠️  Could not remove the Claude Code hook — try it manually:"
+        echo "      herdr integration uninstall claude"
+        echo "      (marker kept, so re-running this reset will retry)"
+      fi
     else
       echo "   ⏭  Claude Code hook left alone (not installed by this setup)"
     fi
