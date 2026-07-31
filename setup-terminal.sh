@@ -364,7 +364,10 @@ fi
 # --- 8c. Optional Claude Code state hook for herdr ---
 # Only offered when Claude Code is actually installed. The hook reports exact
 # blocked/working/done state instead of herdr guessing from terminal output.
-if [[ "$MUX" == "herdr" ]] && command -v claude &>/dev/null; then
+# Requires the herdr binary too — its install may have failed above, and the
+# summary points at `herdr integration install claude` for catching up later.
+HERDR_HOOK_INSTALLED=false
+if [[ "$MUX" == "herdr" ]] && command -v herdr &>/dev/null && command -v claude &>/dev/null; then
   echo ""
   if [[ "$YES_MODE" == "true" ]]; then
     INSTALL_HERDR_HOOK=n
@@ -381,7 +384,10 @@ if [[ "$MUX" == "herdr" ]] && command -v claude &>/dev/null; then
       # ~/.config/herdr because reset deletes that directory.
       mkdir -p ~/.local/state/setup-terminal
       touch ~/.local/state/setup-terminal/herdr-claude-hook
+      HERDR_HOOK_INSTALLED=true
       echo "   ✅ Claude Code state hook installed"
+    else
+      echo "   ⚠️  Hook install failed — retry later with: herdr integration install claude"
     fi
   fi
 fi
@@ -751,7 +757,7 @@ echo "   • Prefix + hjkl navigate panes  •  Prefix + z  zoom  •  Prefix + 
 echo "   • Prefix + q    detach (agents keep running)  •  Prefix + ?  help"
 echo "   • Agent state changes raise macOS notifications"
 echo "   • Config: ~/.config/herdr/config.toml — validate with 'herdr config check'"
-if [[ $INSTALL_HERDR_HOOK =~ ^[Yy]$ ]]; then
+if [[ "$HERDR_HOOK_INSTALLED" == "true" ]]; then
 echo "   • Claude Code state hook installed — exact state, not output guessing"
 elif command -v claude &>/dev/null; then
 echo "   • For exact Claude Code state: herdr integration install claude"
