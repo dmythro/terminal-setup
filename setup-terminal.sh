@@ -296,10 +296,14 @@ pane_borders = false
 pane_gaps = false
 hide_tab_bar_when_single_tab = true
 
-# --- Agent sidebar hidden by default — Ctrl+B then B to toggle it ---
-# Set sidebar_collapsed_mode = "compact" for an always-visible status rail.
+# --- Agent sidebar: narrow status rail, Ctrl+B then B expands it ---
+# The sidebar has no auto-show behaviour — unlike the tab bar above, it never
+# appears on its own however many agents are running. So "hidden" means you'd
+# have to remember it exists; "compact" keeps a ~2-3 column rail of agent-state
+# dots visible instead. Set sidebar_collapsed_mode = "hidden" for zero width,
+# or sidebar_start_collapsed = false to start fully expanded.
 sidebar_start_collapsed = true
-sidebar_collapsed_mode = "hidden"
+sidebar_collapsed_mode = "compact"
 
 # Drag to select copies straight to the clipboard (matches the tmux config).
 copy_on_select = true
