@@ -40,9 +40,17 @@ else
   echo ""
 fi
 if [[ $REMOVE_CONFIGS =~ ^[Yy]$ ]]; then
-  rm -f ~/.tmux.conf
-  rm -f ~/.config/starship.toml
-  rm -f ~/.config/herdr/config.toml
+  # Never delete a symlinked dotfile (chezmoi, stow): empty it through the
+  # link instead, matching the .zshenv/.zprofile handling below. An empty
+  # managed file is fine; a missing one breaks the link the manager owns.
+  for f in ~/.tmux.conf ~/.config/starship.toml ~/.config/herdr/config.toml; do
+    if [[ -L "$f" ]]; then
+      : > "$f"
+      echo "   ⏭  $f is a symlink — emptied instead of deleted"
+    else
+      rm -f "$f"
+    fi
+  done
   rmdir ~/.config/herdr 2>/dev/null || true
   # Remove the setup-terminal.sh block from .zshenv/.zprofile, keeping other
   # content (cargo, rustup, OrbStack, ...) exactly as-is.

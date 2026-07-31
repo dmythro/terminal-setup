@@ -31,7 +31,7 @@ Both blocks are written by `install_path_block()` from a single `emit_path_block
 
 **Block removal uses awk, not `sed '/BEGIN/,/END/d'`** — in both `strip_path_block()` here and the matching loop in `reset-terminal.sh`. A sed range whose closing pattern never matches deletes through end of file, so a dotfile that kept the BEGIN marker but lost the END (hand-edited, truncated, partially copied) would lose everything after it. The awk version buffers the block and re-emits it untouched when no END appears. Don't "simplify" it back to sed.
 
-**Symlinked dotfiles are never deleted or replaced.** Both scripts write through a symlink (`cat > "$target"`) rather than over it, and reset's "delete if empty" step is gated on `[[ ! -L "$f" ]]`. A chezmoi/stow-managed `~/.zshenv` holding only the managed block ends up empty after cleanup — deleting it there would break the link the dotfile manager owns. An empty managed file is fine; a missing one is not.
+**Symlinked dotfiles are never deleted or replaced.** Both scripts write through a symlink (`cat > "$target"`) rather than over it, reset's "delete if empty" step is gated on `[[ ! -L "$f" ]]`, and reset's removal of `~/.tmux.conf`, `~/.config/starship.toml`, and `~/.config/herdr/config.toml` empties a symlinked file (`: >`) instead of `rm`-ing the link node. A chezmoi/stow-managed `~/.zshenv` holding only the managed block ends up empty after cleanup — deleting it there would break the link the dotfile manager owns. An empty managed file is fine; a missing one is not.
 
 Interactive-only config (completions, plugins, aliases, prompt) stays in `~/.zshrc`, which uses `$HOMEBREW_PREFIX` (exported by `brew shellenv` in `.zshenv`) instead of calling `brew --prefix` three times per shell start.
 
