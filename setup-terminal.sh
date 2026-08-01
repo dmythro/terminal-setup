@@ -614,9 +614,17 @@ bindkey '^[^H' backward-kill-line         # Option+Shift+Backspace
 bindkey '\e^M' self-insert                # Option+Enter — insert newline (multiline editing)
 
 # --- Ctrl+K — clear screen + scrollback (non-tmux fallback) ---
+# Use zsh's own clear-screen (what Ctrl+L runs) rather than printing \e[2J:
+# it clears the screen *and* records that the screen is now blank, so the
+# prompt repaints from scratch. Clearing behind ZLE's back leaves its model
+# stale and the next redraw emits cursor moves relative to content that is no
+# longer there — stray glyphs left over the screen. \e[3J then drops the
+# scrollback (terminfo's `clear` doesn't), after `zle -R` has flushed the
+# repaint so the two writes can't interleave.
 function clear-screen-and-scrollback() {
-  printf '\e[2J\e[3J\e[H'
-  zle reset-prompt
+  zle .clear-screen
+  zle -R
+  printf '\e[3J' >"$TTY"
 }
 zle -N clear-screen-and-scrollback
 bindkey '^K' clear-screen-and-scrollback

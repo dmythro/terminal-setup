@@ -59,6 +59,14 @@ Anything that touches a Homebrew path must tolerate the package being absent —
 
 Shell integration comes from `source <(fzf --zsh)` in `.zshrc` — not the legacy `$(brew --prefix)/opt/fzf/install` script and not `~/.fzf.zsh`. Homebrew's fzf caveats no longer mention the install script, and the `~/.fzf.zsh` it generates is now just a PATH guard plus that same `fzf --zsh` call. `reset-terminal.sh` still removes `~/.fzf.zsh` to clean up after older runs.
 
+## Ctrl+K Clear
+
+Two implementations, one per lane. Under tmux, `bind -n C-k send-keys C-l \; clear-history` intercepts the key before zsh ever sees it. Everywhere else — `MUX=none` and `MUX=herdr` alike — the `clear-screen-and-scrollback` ZLE widget in `.zshrc` runs instead.
+
+**The widget must call `zle .clear-screen`, not `printf '\e[2J'` + `zle reset-prompt`.** ZLE's redisplay is incremental: it diffs against its record of what is on screen and emits *relative* cursor moves. Clearing the screen by hand leaves that record stale, so the follow-up redraw emits `\r\r\e[A` … `\e[J` against content that no longer exists and paints fragments over the blank screen. The builtin `.clear-screen` (what Ctrl+L is bound to) both clears and marks the screen blank, forcing a full repaint. `\e[3J` still has to be sent separately since terminfo's `clear` is only `\E[H\E[2J`, and it goes after a `zle -R` so the flushed repaint can't interleave with a direct `>"$TTY"` write.
+
+This only ever reproduced under herdr because tmux was covering for it — the "non-tmux fallback" path was the untested one.
+
 ## Multiplexer (none / herdr / tmux)
 
 Section 3 sets `MUX` to one of `none` (default) / `herdr` / `tmux` from a numbered prompt. Everything downstream branches on `"$MUX"` — there is no `INSTALL_TMUX` variable any more. The `.zshrc` heredoc carries a `__MUX_TOGGLE__` placeholder, replaced by `sed -i ''` after writing, that becomes `USE_MUX=<value>`.
