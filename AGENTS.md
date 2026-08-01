@@ -16,7 +16,7 @@ A GitHub repo ([dmythro/terminal-setup](https://github.com/dmythro/terminal-setu
 
 ## Script Structure
 
-The script uses `set -e` and is sequential with interactive prompts (`read -p`). It writes config files inline using **quoted heredocs** (`cat > ~/.file << 'TAG'`) so variables aren't expanded during write. The multiplexer choice uses a `__MUX_TOGGLE__` placeholder in the zshrc heredoc, replaced via `sed -i ''` after writing — this is the only value that needs post-write substitution. (The PATH block in section 9a is the one *unquoted* heredoc, since it has to interpolate `$BREW_PREFIX`; `\$` escapes preserve the runtime variables.)
+The script uses `set -e` and is sequential with interactive prompts (`read -p`). It writes config files inline using **quoted heredocs** (`cat > ~/.file << 'TAG'`) so variables aren't expanded during write. The multiplexer choice uses a `__MUX_TOGGLE__` placeholder in the zshrc heredoc, substituted by piping the heredoc through `sed` on the way out (`sed "s/__MUX_TOGGLE__/$MUX_TOGGLE/" > ~/.zshrc << 'ZSHRC'`) — this is the only value that needs substitution. (The PATH block in section 9a is the one *unquoted* heredoc, since it has to interpolate `$BREW_PREFIX`; `\$` escapes preserve the runtime variables.)
 
 `REPO_RAW` (line 9) is used to download `Dmythro.terminal` from the repo at runtime (section 12).
 
@@ -31,7 +31,7 @@ Both blocks are written by `install_path_block()` from a single `emit_path_block
 
 **Block removal uses awk, not `sed '/BEGIN/,/END/d'`** — in both `strip_path_block()` here and the matching loop in `reset-terminal.sh`. A sed range whose closing pattern never matches deletes through end of file, so a dotfile that kept the BEGIN marker but lost the END (hand-edited, truncated, partially copied) would lose everything after it. The awk version buffers the block and re-emits it untouched when no END appears. Don't "simplify" it back to sed.
 
-**Symlinked dotfiles are never deleted or replaced.** Both scripts write through a symlink (`cat > "$target"`) rather than over it, reset's "delete if empty" step is gated on `[[ ! -L "$f" ]]`, and reset's removal of `~/.tmux.conf`, `~/.config/starship.toml`, and `~/.config/herdr/config.toml` empties a symlinked file (`: >`) instead of `rm`-ing the link node. A chezmoi/stow-managed `~/.zshenv` holding only the managed block ends up empty after cleanup — deleting it there would break the link the dotfile manager owns. An empty managed file is fine; a missing one is not.
+**Symlinked dotfiles are never deleted or replaced.** Both scripts write through a symlink (`cat > "$target"`) rather than over it, **no script may use `sed -i` on a dotfile** — BSD sed refuses outright ("in-place editing only works for regular files"), so under `set -e` it both skips the edit and aborts the run mid-way; filter on the way out instead, reset's "delete if empty" step is gated on `[[ ! -L "$f" ]]`, and reset's removal of `~/.tmux.conf`, `~/.config/starship.toml`, and `~/.config/herdr/config.toml` empties a symlinked file (`: >`) instead of `rm`-ing the link node. A chezmoi/stow-managed `~/.zshenv` holding only the managed block ends up empty after cleanup — deleting it there would break the link the dotfile manager owns. An empty managed file is fine; a missing one is not.
 
 Interactive-only config (completions, plugins, aliases, prompt) stays in `~/.zshrc`, which uses `$HOMEBREW_PREFIX` (exported by `brew shellenv` in `.zshenv`) instead of calling `brew --prefix` three times per shell start.
 
@@ -69,7 +69,7 @@ This only ever reproduced under herdr because tmux was covering for it — the "
 
 ## Multiplexer (none / herdr / tmux)
 
-Section 3 sets `MUX` to one of `none` (default) / `herdr` / `tmux` from a numbered prompt. Everything downstream branches on `"$MUX"` — there is no `INSTALL_TMUX` variable any more. The `.zshrc` heredoc carries a `__MUX_TOGGLE__` placeholder, replaced by `sed -i ''` after writing, that becomes `USE_MUX=<value>`.
+Section 3 sets `MUX` to one of `none` (default) / `herdr` / `tmux` from a numbered prompt. Everything downstream branches on `"$MUX"` — there is no `INSTALL_TMUX` variable any more. The `.zshrc` heredoc carries a `__MUX_TOGGLE__` placeholder, substituted on the way out, that becomes `USE_MUX=<value>`.
 
 **Auto-start is opt-out, not opt-in.** It runs in any terminal except those on the two skip lists in `.zshrc` — an allowlist would silently do nothing in Ghostty, WezTerm, Kitty, Alacritty and anything else not enumerated, which contradicts the README's claim that the setup works in any emulator. To exclude a terminal, add to a list rather than editing the condition.
 

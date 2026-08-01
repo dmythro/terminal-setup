@@ -479,7 +479,13 @@ echo "📝 Writing ~/.zshrc..."
 # Multiplexer to auto-start (none / herdr / tmux)
 MUX_TOGGLE="$MUX"
 
-cat > ~/.zshrc << 'ZSHRC'
+# The heredoc stays quoted so nothing else expands; the one value that does need
+# substituting is filtered on the way out. Don't move this to a `sed -i` after
+# the write: BSD sed refuses in-place editing of a symlink ("in-place editing
+# only works for regular files"), so a chezmoi/stow-managed ~/.zshrc would keep
+# the literal placeholder — and under `set -e` the failure aborted the run
+# before starship.toml, the Nerd Font, or the Terminal.app profile were written.
+sed "s/__MUX_TOGGLE__/$MUX_TOGGLE/" > ~/.zshrc << 'ZSHRC'
 # =============================================================================
 # Zsh Config
 # =============================================================================
@@ -629,9 +635,6 @@ function clear-screen-and-scrollback() {
 zle -N clear-screen-and-scrollback
 bindkey '^K' clear-screen-and-scrollback
 ZSHRC
-
-# Replace multiplexer placeholder with actual value
-sed -i '' "s/__MUX_TOGGLE__/$MUX_TOGGLE/" ~/.zshrc
 
 # --- 10. Starship config ---
 mkdir -p ~/.config
