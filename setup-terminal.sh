@@ -611,7 +611,7 @@ WORDCHARS=''
 bindkey '^A' beginning-of-line
 bindkey '^E' end-of-line
 bindkey '^W' backward-kill-word
-bindkey '^\b' backward-kill-word        # Option+Backspace
+bindkey '^[^?' backward-kill-word       # Option+Backspace (Option-as-Meta sends ESC DEL)
 bindkey '^[[3;3~' kill-word              # Option+Delete (forward)
 bindkey '^[[1;3D' backward-word          # Option+Left
 bindkey '^[[1;3C' forward-word           # Option+Right
